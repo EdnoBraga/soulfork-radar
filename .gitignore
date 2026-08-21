@@ -1,0 +1,9 @@
+.env
+saida/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+radar.log
+build_win/radar.ico

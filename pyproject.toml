@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soulfork-prospector"
+version = "1.0.0"
+description = "Prospecção de clientes por nicho e localização, com diagnóstico técnico e score de oportunidade."
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31", "beautifulsoup4>=4.12", "openpyxl>=3.1"]
+
+[project.scripts]
+prospector = "prospector.cli:main"
+
+[tool.setuptools]
+packages = ["prospector", "prospector.sources", "prospector.enrich"]

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titulo %}Configuração · SoulFork Radar{% endblock %}
+{% block conteudo %}
+<h1>Configuração</h1>
+<p class="sub">A chave conecta o Radar ao Google Maps. Ela é sua, fica só neste computador,
+e o Google dá crédito mensal gratuito que cobre centenas de buscas.</p>
+
+{% if msg %}<div class="card" style="border-left:4px solid #2e7d32;margin-top:18px;padding:14px 18px">✓ {{ msg }}</div>{% endif %}
+{% if erro %}<div class="card" style="border-left:4px solid var(--quente);margin-top:18px;padding:14px 18px">✗ {{ erro }}</div>{% endif %}
+
+<div class="card" style="margin-top:18px;padding:22px;max-width:720px">
+ <form method="post">
+  <label style="font-weight:600;font-size:13.5px">Chave da Google Places API</label>
+  <div style="display:flex;gap:10px;margin-top:8px">
+   <input name="chave" placeholder="AIza…" autocomplete="off" spellcheck="false"
+    value="" style="flex:1;padding:11px 13px;border:1px solid var(--linha);border-radius:10px;
+    font:13px ui-monospace,Consolas,monospace">
+   <button class="botao" type="submit">Testar e salvar</button>
+  </div>
+ </form>
+ <p class="sub" style="margin-top:10px">
+  {% if tem_chave %}Já existe uma chave salva e funcionando. Salvar outra substitui a atual.{% else %}Nenhuma chave salva ainda.{% endif %}
+ </p>
+</div>
+
+<div class="card" style="margin-top:14px;padding:22px;max-width:720px">
+ <b style="font-size:14.5px">Como criar a chave (5–10 minutos, uma vez só)</b>
+ <ol style="margin:12px 0 0 18px;line-height:2;font-size:14px">
+  <li>Acesse <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> e entre com sua conta Google</li>
+  <li>Crie um projeto (qualquer nome, ex.: <i>radar</i>)</li>
+  <li>No menu, vá em <b>APIs e serviços → Biblioteca</b>, procure <b>Places API (New)</b> e clique em <b>Ativar</b></li>
+  <li>Ative o <b>faturamento</b> do projeto (pede cartão; o crédito gratuito mensal cobre o uso normal antes de qualquer cobrança)</li>
+  <li>Em <b>APIs e serviços → Credenciais</b>, clique <b>Criar credenciais → Chave de API</b></li>
+  <li>Copie a chave (começa com <code>AIza</code>) e cole aqui em cima</li>
+ </ol>
+ <p class="sub" style="margin-top:12px">Dica de segurança: em "Restrições de API" da chave,
+ restrinja à <b>Places API (New)</b>. Não use restrição por site/referer — o Radar chama do
+ seu computador, não de um site.</p>
+</div>
+
+<p class="sub" style="margin-top:16px">Seus dados (chave, banco de leads e exportações) ficam em:
+<code>{{ pasta }}</code></p>
+{% endblock %}

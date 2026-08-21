@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% set pagina = 'analises' %}
+{% block titulo %}Análises — {{ r.nicho }} em {{ r.local }}{% endblock %}
+{% block css %}
+<style>
+.layout{display:grid;grid-template-columns:230px 1fr;gap:22px}
+.menu-lat{position:sticky;top:20px;align-self:start}
+.menu-lat a{display:flex;justify-content:space-between;padding:10px 14px;font-size:13.5px;
+ text-decoration:none;border-radius:9px;color:var(--txt)}
+.menu-lat a:hover{background:var(--neutro-bg)}
+.menu-lat a.on{background:#134e2f;color:#fff}
+.menu-lat .n{color:var(--fraco);font-size:12px}
+.menu-lat a.on .n{color:#c9dcc9}
+.secao{margin-bottom:26px;scroll-margin-top:20px}
+.secao h2{font-size:17px;margin-bottom:12px}
+.destaque{background:var(--escuro);color:#e8ecf4;border-radius:14px;padding:22px 24px;
+ margin-bottom:22px}
+.destaque h2{color:var(--verde);font-size:16px;margin-bottom:6px}
+.destaque p{font-size:13.5px;color:#aab3c5;margin-bottom:14px}
+.destaque .lista b{color:#fff}
+.destaque .item{display:flex;justify-content:space-between;gap:14px;padding:9px 0;
+ border-bottom:1px solid rgba(255,255,255,.09);font-size:13.5px}
+.destaque .item:last-child{border-bottom:0}
+.grade2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bloco{padding:18px 20px}
+.bloco h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco);
+ margin-bottom:12px}
+.linha-n{display:flex;gap:14px;align-items:baseline;padding:7px 0;font-size:13.5px}
+.linha-n b{font-size:26px;min-width:56px;font-variant-numeric:tabular-nums}
+.mov{font-size:13.5px}
+.mov .item{display:flex;justify-content:space-between;padding:8px 0;
+ border-bottom:1px dashed var(--linha)}
+.mov .item:last-child{border-bottom:0}
+.sobe{color:#1a7a3c;font-weight:600}
+.desce{color:var(--quente);font-weight:600}
+.licao{background:var(--frio-bg);border-radius:10px;padding:12px 16px;font-size:13.5px;
+ margin-bottom:8px}
+.exp{display:flex;gap:8px;margin-bottom:20px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.menu-lat{position:static;display:flex;
+ flex-wrap:wrap;gap:6px}.grade2{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block conteudo %}
+<h1>Análises</h1>
+<div class="sub" style="margin-bottom:18px">O que o radar descobriu na sua busca: por onde
+ começar, quem está na frente no Google e o que já dá pra saber de cada mercado.<br>
+ <b>Busca analisada:</b> “{{ r.nicho }}” em {{ r.local }} — {{ r.terminou_em[:16]|replace('T',' ') }}</div>
+
+<div class="exp">
+ <a class="botao claro mini" href="/rodada/{{rid}}/exportar/pdf">Baixar PDF</a>
+ <a class="botao claro mini" href="/rodada/{{rid}}/exportar/csv">CSV</a>
+ <a class="botao claro mini" href="/rodada/{{rid}}/exportar/xlsx">Excel</a>
+ <a class="botao mini" href="/rodada/{{rid}}/leads">← Ver a lista de leads</a>
+</div>
+
+<div class="layout">
+ <div class="menu-lat card" style="padding:8px">
+  <a href="#resumo" class="on">Resumo <span class="n">{{ d.total }}</span></a>
+  <a href="#movimento">Quem subiu e quem caiu <span class="n">{{ d.total }}</span></a>
+  <a href="#topo">Por que o topo ganha</a>
+  <a href="#mercado">O mercado desta busca <span class="n">{{ d.total }}</span></a>
+ </div>
+
+ <div>
+  <div class="secao" id="resumo">
+   {% if d.prontos %}
+   <div class="destaque">
+    <h2>{{ d.prontos|length }} empresa{{ 's' if d.prontos|length != 1 }} pronta{{ 's' if d.prontos|length != 1 }} pra abordar hoje</h2>
+    <p>Faturam bem no Google Maps e ainda não têm site. É a conversa mais fácil da lista:
+     o problema já está na cara.</p>
+    <div class="lista">
+     {% for l in d.prontos[:6] %}
+      <div class="item"><b>{{ l.nome }}</b>
+       <span>{{ '%.1f'|format(l.nota)|replace('.',',') if l.nota }}★ · {{ l.avaliacoes }} aval.
+        {% if l.contatos.whatsapp %} · tem WhatsApp{% endif %}</span></div>
+     {% endfor %}
+    </div>
+   </div>
+   {% endif %}
+
+   <div class="grade2">
+    <div class="card bloco">
+     <h3>O que você recebeu</h3>
+     <div class="linha-n"><b>{{ d.total }}</b> leads com empresa, contato e diagnóstico</div>
+     <div class="linha-n"><b>{{ d.novos }}</b> chegaram agora — são estes que a busca cobrou</div>
+     <div class="linha-n"><b>{{ d.ja_tinha }}</b> você já tinha de rodadas anteriores</div>
+    </div>
+    <div class="card bloco">
+     <h3>Por onde começar</h3>
+     <div class="linha-n"><b>{{ d.quentes|length }}</b> oportunidades quentes</div>
+     <div class="linha-n"><b>{{ d.sem_site|length }}</b> sem site nenhum — {{ d.pct_sem_site }}% da lista</div>
+     <div class="linha-n"><b>{{ d.com_wa|length }}</b> com WhatsApp — dá pra chamar sem ligar</div>
+     <div class="linha-n"><b>{{ d.com_ig|length }}</b> com Instagram — dá pra espiar o perfil antes de falar</div>
+    </div>
+   </div>
+  </div>
+
+  <div class="secao" id="movimento">
+   <h2>Quem subiu e quem caiu no Maps</h2>
+   <div class="card bloco mov">
+   {% if not mov.tem_historico %}
+    <p style="color:var(--fraco)">Primeira varredura desta busca — ainda não há com o que
+     comparar. Rode a mesma busca daqui a uma semana e esta seção mostra quem ganhou e quem
+     perdeu posição.</p>
+   {% else %}
+    {% for l, delta in mov.subiu[:8] %}
+     <div class="item"><span>{{ l.nome }}</span><span class="sobe">▲ subiu {{ delta }}</span></div>
+    {% endfor %}
+    {% for l, delta in mov.caiu[:8] %}
+     <div class="item"><span>{{ l.nome }}</span><span class="desce">▼ caiu {{ delta }}</span></div>
+    {% endfor %}
+    {% if not mov.subiu and not mov.caiu %}
+     <p style="color:var(--fraco)">Nenhuma mudança de posição desde a última varredura.</p>
+    {% endif %}
+   {% endif %}
+   </div>
+  </div>
+
+  <div class="secao" id="topo">
+   <h2>Por que o topo ganha</h2>
+   {% for licao in d.licoes %}<div class="licao">{{ licao }}</div>{% endfor %}
+   {% if d.perfil_topo and d.perfil_resto %}
+   <div class="grade2" style="margin-top:12px">
+    <div class="card bloco">
+     <h3>Top 5 do ranking</h3>
+     <div class="linha-n"><b>{{ d.perfil_topo.avaliacoes }}</b> avaliações em média</div>
+     <div class="linha-n"><b>{{ d.perfil_topo.nota }}</b> nota média</div>
+     <div class="linha-n"><b>{{ d.perfil_topo.com_site }}%</b> têm site</div>
+     <div class="linha-n"><b>{{ d.perfil_topo.com_instagram }}%</b> têm Instagram</div>
+    </div>
+    <div class="card bloco">
+     <h3>O resto da lista</h3>
+     <div class="linha-n"><b>{{ d.perfil_resto.avaliacoes }}</b> avaliações em média</div>
+     <div class="linha-n"><b>{{ d.perfil_resto.nota }}</b> nota média</div>
+     <div class="linha-n"><b>{{ d.perfil_resto.com_site }}%</b> têm site</div>
+     <div class="linha-n"><b>{{ d.perfil_resto.com_instagram }}%</b> têm Instagram</div>
+    </div>
+   </div>
+   {% endif %}
+  </div>
+
+  <div class="secao" id="mercado">
+   <h2>O mercado desta busca</h2>
+   <div class="grade2">
+    <div class="card bloco">
+     <h3>Presença digital</h3>
+     <div class="linha-n"><b>{{ d.total }}</b> empresas no Maps — tudo o que apareceu, não só o que virou lead</div>
+     <div class="linha-n"><b>{{ d.nota_media or '—' }}</b> nota média delas ({{ d.com_nota }} têm avaliação)</div>
+     <div class="linha-n"><b>{{ d.analisados }}</b> sites analisados com print e leitura de código</div>
+     <div class="linha-n"><b>{{ d.site_fora|length }}</b> com site fora do ar nesta checagem</div>
+    </div>
+    <div class="card bloco">
+     <h3>Canais</h3>
+     <div class="linha-n"><b>{{ d.pct_com_wa }}%</b> têm WhatsApp visível</div>
+     <div class="linha-n"><b>{{ d.pct_com_ig }}%</b> têm Instagram</div>
+     <div class="linha-n"><b>{{ d.com_tt|length }}</b> têm TikTok</div>
+     <div class="linha-n"><b>{{ d.com_mail|length }}</b> têm e-mail público</div>
+    </div>
+   </div>
+   <p class="sub" style="margin-top:12px">Checagens feitas no HTML público de cada site.
+    Antes de citar um achado numa proposta, reconfirme em outra janela de tempo — instabilidade
+    intermitente não é site fora do ar. GA4 nunca é afirmado como ausente (não é verificável
+    por esse caminho).</p>
+  </div>
+ </div>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% set pagina = 'busca' %}
+{% block titulo %}SoulFork Radar — Buscar{% endblock %}
+{% block css %}
+<style>
+.hero{background:var(--escuro);border-radius:16px;color:#e8ecf4;display:grid;
+ grid-template-columns:1fr 380px;overflow:hidden;margin-bottom:26px;min-height:320px}
+.hero .txt{padding:40px 38px;display:flex;flex-direction:column;justify-content:center}
+.hero h1{color:#fff;font-size:30px;line-height:1.15;margin-bottom:12px}
+.hero h1 em{color:var(--verde);font-style:normal}
+.hero p{color:#aab3c5;font-size:14.5px;max-width:420px}
+.radar{position:relative;background:radial-gradient(circle at 60% 45%,#152342 0%,#0b1220 70%)}
+.radar svg{position:absolute;inset:0;width:100%;height:100%}
+.form-card{padding:26px 26px 30px;margin-bottom:26px}
+.grade-form{display:grid;grid-template-columns:2fr 1fr 1fr 130px auto;gap:14px;align-items:end}
+label{display:block;font-size:12px;font-weight:600;color:var(--fraco);margin-bottom:6px;
+ text-transform:uppercase;letter-spacing:.05em}
+input,select{width:100%;padding:11px 13px;border:1.5px solid var(--linha);border-radius:10px;
+ font-size:14.5px;background:#fff;color:var(--txt)}
+input:focus,select:focus{outline:none;border-color:#134e2f}
+.dica{font-size:12.5px;color:var(--fraco);margin-top:10px}
+.sugestoes{position:relative}
+.menu-sug{position:absolute;top:100%;left:0;right:0;z-index:30;background:#fff;
+ border:1px solid var(--linha);border-radius:12px;margin-top:6px;max-height:340px;
+ overflow-y:auto;box-shadow:0 12px 32px rgba(0,0,0,.12);display:none}
+.menu-sug.aberto{display:block}
+.menu-sug .grupo{padding:10px 14px 4px;font-size:11px;font-weight:700;color:var(--fraco);
+ text-transform:uppercase;letter-spacing:.06em}
+.menu-sug button{display:block;width:100%;text-align:left;border:0;background:none;
+ padding:8px 14px;font-size:14px;cursor:pointer;color:var(--txt)}
+.menu-sug button:hover{background:var(--neutro-bg)}
+.aviso-chave{background:var(--morno-bg);border:1px solid #e8d9a8;color:#6b5310;border-radius:12px;
+ padding:14px 18px;font-size:13.5px;margin-bottom:22px}
+.kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--linha);border-radius:12px;padding:14px 20px}
+.kpi b{display:block;font-size:22px}
+.kpi span{font-size:12px;color:var(--fraco)}
+.hist{font-size:13.5px}
+.hist a{display:flex;justify-content:space-between;padding:11px 16px;text-decoration:none;
+ border-bottom:1px solid var(--linha)}
+.hist a:last-child{border-bottom:0}
+.hist a:hover{background:var(--neutro-bg)}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.radar{min-height:180px}
+.grade-form{grid-template-columns:1fr 1fr}.grade-form>div:first-child{grid-column:1/-1}}
+</style>
+{% endblock %}
+{% block conteudo %}
+<div class="hero">
+ <div class="txt">
+  <h1>Seus clientes já<br>estão <em>no mapa.</em></h1>
+  <p>O radar varre o Google Maps, encontra quem precisa de você, analisa o site, o Instagram
+   e o WhatsApp de cada empresa — e já entrega o motivo da primeira conversa.</p>
+ </div>
+ <div class="radar">
+  <svg viewBox="0 0 380 320">
+   <g stroke="#26365c" fill="none" stroke-width="1">
+    <circle cx="228" cy="144" r="40"/><circle cx="228" cy="144" r="80"/>
+    <circle cx="228" cy="144" r="120"/><circle cx="228" cy="144" r="160"/>
+   </g>
+   <path d="M228 144 L228 -16 A160 160 0 0 1 341 31 Z" fill="url(#fx)">
+    <animateTransform attributeName="transform" type="rotate" from="0 228 144" to="360 228 144"
+     dur="6s" repeatCount="indefinite"/>
+   </path>
+   <defs><linearGradient id="fx" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#c7f464" stop-opacity=".5"/>
+    <stop offset="100%" stop-color="#c7f464" stop-opacity="0"/></linearGradient></defs>
+   <circle cx="180" cy="100" r="4" fill="#c7f464"/>
+   <circle cx="280" cy="200" r="4" fill="#c7f464" opacity=".7"/>
+   <circle cx="300" cy="90" r="4" fill="#c7f464" opacity=".5"/>
+   <rect x="196" y="88" rx="6" width="72" height="16" fill="#f6f2b6" opacity=".9"/>
+   <rect x="296" y="180" rx="6" width="60" height="16" fill="#f6f2b6" opacity=".75"/>
+  </svg>
+ </div>
+</div>
+
+{% if not tem_chave %}
+<div class="aviso-chave"><b>Falta a chave da Google Places API.</b>
+ Sem ela a busca não roda. <a href="/configuracao">Configurar agora →</a></div>
+{% endif %}
+
+<div class="card form-card">
+ <form method="post" action="/buscar">
+  <div class="grade-form">
+   <div class="sugestoes">
+    <label>O que você procura</label>
+    <input name="nicho" id="nicho" autocomplete="off" required
+     placeholder="Dentistas, estética, pet shop…">
+    <div class="menu-sug" id="menu">
+     <div class="grupo" style="padding-top:14px;color:var(--txt)">Sugestões pra inspirar:
+      clique pra preencher ou digite o que quiser.</div>
+     {% for grupo, itens in sugestoes %}
+      <div class="grupo">{{ grupo }}</div>
+      {% for item in itens %}<button type="button" data-v="{{ item }}">{{ item }}</button>{% endfor %}
+     {% endfor %}
+    </div>
+   </div>
+   <div>
+    <label>Estado</label>
+    <select name="uf" id="uf" required>
+     <option value="">UF…</option>
+     {% for sigla, nome in ufs %}<option value="{{sigla}}">{{sigla}} — {{nome}}</option>{% endfor %}
+    </select>
+   </div>
+   <div>
+    <label>Cidade / região</label>
+    <select name="cidade" id="cidade"><option value="">o estado inteiro</option></select>
+   </div>
+   <div>
+    <label>Quantas</label>
+    <input type="number" name="quantidade" value="20" min="1" max="120">
+   </div>
+   <div><button class="botao" type="submit">Buscar</button></div>
+  </div>
+  <div class="dica">Quantas empresas você quer receber nesta busca — o Google entrega no máximo
+   120. Não sabe em quem mirar? Clique no campo de nicho e escolha uma sugestão.</div>
+ </form>
+</div>
+
+{% if resumo.total %}
+<div class="kpis">
+ <div class="kpi"><b>{{ resumo.total }}</b><span>leads no banco</span></div>
+ <div class="kpi"><b style="color:var(--quente)">{{ resumo.quentes }}</b><span>quentes</span></div>
+ <div class="kpi"><b style="color:var(--morno)">{{ resumo.mornos }}</b><span>mornos</span></div>
+ <div class="kpi"><b>{{ resumo.novos }}</b><span>ainda não abordados</span></div>
+</div>
+{% endif %}
+
+{% if historico %}
+<div class="card hist">
+ {% for h in historico %}
+  <a href="{% if h.status=='pronta' %}/rodada/{{h.id}}/leads{% else %}/rodada/{{h.id}}/aguardando{% endif %}">
+   <span><b>{{ h.nicho }}</b> · {{ h.local }}</span>
+   <span style="color:var(--fraco)">{{ h.total or '' }} {{ 'leads' if h.status=='pronta' else h.status }}</span>
+  </a>
+ {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block js %}
+<script>
+const CIDADES = {{ cidades_json|safe }};
+const uf = document.getElementById('uf'), cid = document.getElementById('cidade');
+uf.addEventListener('change', () => {
+  cid.innerHTML = '<option value="">o estado inteiro</option>';
+  (CIDADES[uf.value] || []).forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c;
+    cid.appendChild(o);
+  });
+});
+const nicho = document.getElementById('nicho'), menu = document.getElementById('menu');
+nicho.addEventListener('focus', () => menu.classList.add('aberto'));
+document.addEventListener('click', e => {
+  if (!e.target.closest('.sugestoes')) menu.classList.remove('aberto');
+});
+menu.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  nicho.value = b.dataset.v; menu.classList.remove('aberto');
+}));
+</script>
+{% endblock %}

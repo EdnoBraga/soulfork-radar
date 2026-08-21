@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set pagina = 'banco' %}
+{% block titulo %}Todos os leads{% endblock %}
+{% block css %}
+<style>
+td{padding:12px 14px;border-bottom:1px solid var(--linha);font-size:13.5px;vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco);
+ text-align:left;padding:12px 14px;border-bottom:1px solid var(--linha)}
+tr:hover td{background:#fbfbf9}
+.tabela{overflow-x:auto}
+</style>
+{% endblock %}
+{% block conteudo %}
+<h1>Todos os leads</h1>
+<div class="sub" style="margin-bottom:18px">{{ resumo.total }} empresas acumuladas em todas as
+ buscas · {{ resumo.quentes }} quentes · {{ resumo.novos }} ainda não abordados</div>
+<div class="card tabela">
+<table>
+ <thead><tr><th>Score</th><th>Empresa</th><th>Nicho</th><th>Cidade</th><th>Oportunidade</th>
+  <th>Contato</th></tr></thead>
+ <tbody>
+ {% for l in leads %}
+  <tr>
+   <td><b>{{ l.score }}</b><br><span class="badge {{ l.faixa }}">{{ rotulo_faixa(l.faixa) }}</span></td>
+   <td><b>{{ l.nome }}</b><br><span style="color:var(--fraco);font-size:12.5px">{{ l.site or 'sem site' }}</span></td>
+   <td>{{ l.nicho }}</td>
+   <td>{{ l.municipio }}{% if l.uf %}/{{ l.uf }}{% endif %}</td>
+   <td style="max-width:300px">{{ l.frase_oportunidade }}</td>
+   <td>
+    {% if l.contatos.whatsapp %}<a href="https://wa.me/{{ l.contatos.whatsapp }}" target="_blank" style="color:#134e2f;font-weight:600;text-decoration:none">WhatsApp</a><br>{% endif %}
+    {% if l.contatos.emails %}{{ l.contatos.emails[0] }}<br>{% endif %}
+    {% if l.redes.instagram %}<a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank" style="text-decoration:none">@{{ l.redes.instagram }}</a>{% endif %}
+   </td>
+  </tr>
+ {% endfor %}
+ </tbody>
+</table>
+</div>
+{% endblock %}

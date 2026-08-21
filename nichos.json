@@ -1,0 +1,27 @@
+{
+  "_leia": "Cada nicho vira uma ou mais buscas no Google Places. 'termos' são as variações de nome que o mercado usa — quanto mais variações, mais cobertura (a API devolve no máximo 60 resultados por termo). 'tipo' é opcional e restringe pelo tipo oficial do Places. Edite à vontade e adicione seus próprios nichos.",
+
+  "fisioterapia":   {"termos": ["clínica de fisioterapia", "fisioterapeuta", "pilates clínico", "reabilitação física"], "tipo": "physiotherapist"},
+  "odontologia":    {"termos": ["clínica odontológica", "dentista", "implante dentário", "ortodontia"], "tipo": "dentist"},
+  "dermatologia":   {"termos": ["clínica de dermatologia", "dermatologista", "clínica de estética avançada"], "tipo": null},
+  "estetica":       {"termos": ["clínica de estética", "harmonização facial", "depilação a laser", "centro de estética"], "tipo": "beauty_salon"},
+  "oftalmologia":   {"termos": ["clínica oftalmológica", "oftalmologista"], "tipo": null},
+  "veterinaria":    {"termos": ["clínica veterinária", "hospital veterinário", "pet shop com veterinário"], "tipo": "veterinary_care"},
+  "psicologia":     {"termos": ["clínica de psicologia", "psicólogo", "terapia"], "tipo": null},
+  "nutricao":       {"termos": ["nutricionista", "clínica de nutrição"], "tipo": null},
+
+  "contabilidade":  {"termos": ["escritório de contabilidade", "contador", "assessoria contábil", "BPO financeiro"], "tipo": "accounting"},
+  "advocacia":      {"termos": ["escritório de advocacia", "advogado trabalhista", "advogado previdenciário", "advogado empresarial"], "tipo": "lawyer"},
+  "arquitetura":    {"termos": ["escritório de arquitetura", "arquiteto", "design de interiores"], "tipo": null},
+  "engenharia":     {"termos": ["engenharia civil", "empresa de engenharia", "projetos estruturais"], "tipo": null},
+  "consultoria":    {"termos": ["consultoria empresarial", "consultoria em licitações", "consultoria financeira"], "tipo": null},
+  "seguros":        {"termos": ["corretora de seguros", "corretor de seguros"], "tipo": "insurance_agency"},
+  "imobiliaria":    {"termos": ["imobiliária", "corretor de imóveis"], "tipo": "real_estate_agency"},
+
+  "academia":       {"termos": ["academia", "estúdio de pilates", "crossfit", "personal trainer estúdio"], "tipo": "gym"},
+  "restaurante":    {"termos": ["restaurante", "hamburgueria", "pizzaria", "restaurante japonês"], "tipo": "restaurant"},
+  "educacao":       {"termos": ["escola particular", "curso preparatório", "curso de idiomas", "escola técnica"], "tipo": "school"},
+  "construcao":     {"termos": ["construtora", "empresa de reformas", "material de construção"], "tipo": null},
+  "automotivo":     {"termos": ["oficina mecânica", "funilaria e pintura", "centro automotivo", "estética automotiva"], "tipo": "car_repair"},
+  "eventos":        {"termos": ["buffet para eventos", "produtora de eventos", "espaço para eventos", "assessoria de casamento"], "tipo": null}
+}

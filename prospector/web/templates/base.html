@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}SoulFork Radar{% endblock %}</title>
+<style>
+*{box-sizing:border-box;margin:0}
+:root{
+ --escuro:#0b1220; --escuro2:#101a2e; --verde:#c7f464; --verde2:#8fd14f;
+ --claro:#f7f7f4; --card:#ffffff; --linha:#e6e4dd; --txt:#17181c; --fraco:#7a7d85;
+ --quente:#d1421f; --quente-bg:#fdeee9; --morno:#b07d10; --morno-bg:#fdf6e3;
+ --frio:#3a6ea5; --frio-bg:#eef4fa; --neutro-bg:#f1f1ee;
+ --radius:12px;
+}
+body{background:var(--claro);color:var(--txt);
+ font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+a{color:inherit}
+.topbar{background:var(--escuro);color:#e8ecf4;padding:0 22px;display:flex;
+ align-items:center;gap:26px;height:54px}
+.topbar .logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;
+ letter-spacing:-.01em;color:#fff;text-decoration:none}
+.logo-dot{width:22px;height:22px;border-radius:6px;background:var(--verde);display:inline-flex;
+ align-items:center;justify-content:center}
+.logo-dot svg{display:block}
+.topbar nav{display:flex;gap:4px;font-size:13.5px}
+.topbar nav a{color:#aab3c5;text-decoration:none;padding:7px 12px;border-radius:8px}
+.topbar nav a.on,.topbar nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
+.topbar .direita{margin-left:auto;font-size:12.5px;color:#aab3c5}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 22px 90px}
+h1{font-size:24px;letter-spacing:-.02em;margin-bottom:4px}
+.sub{color:var(--fraco);font-size:13.5px}
+.botao{display:inline-flex;align-items:center;gap:7px;background:#134e2f;color:#fff;border:0;
+ padding:11px 22px;border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;
+ text-decoration:none}
+.botao:hover{background:#0d3d24}
+.botao.claro{background:var(--card);color:var(--txt);border:1px solid var(--linha)}
+.botao.claro:hover{border-color:#c8c5bb;background:var(--card)}
+.botao.mini{padding:6px 12px;font-size:12.5px;border-radius:8px}
+.chip{display:inline-flex;padding:6px 13px;border:1px solid var(--linha);border-radius:999px;
+ background:var(--card);font-size:13px;color:var(--fraco);cursor:pointer;text-decoration:none;
+ white-space:nowrap}
+.chip.on{background:#134e2f;border-color:#134e2f;color:#fff}
+.card{background:var(--card);border:1px solid var(--linha);border-radius:var(--radius)}
+.badge{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11.5px;font-weight:600}
+.badge.quente{background:var(--quente-bg);color:var(--quente)}
+.badge.morno{background:var(--morno-bg);color:var(--morno)}
+.badge.frio{background:var(--frio-bg);color:var(--frio)}
+.badge.fraco,.badge.descartar{background:var(--neutro-bg);color:var(--fraco)}
+.badge.novo{background:#134e2f;color:#fff}
+.badge.visto{background:var(--neutro-bg);color:var(--fraco)}
+table{border-collapse:collapse;width:100%}
+.copiar{border:0;background:none;cursor:pointer;color:var(--fraco);font-size:12px;padding:1px 5px;
+ border-radius:4px}
+.copiar:hover{background:var(--neutro-bg);color:var(--txt)}
+@media(max-width:760px){.wrap{padding:18px 12px 70px}.topbar{padding:0 12px;gap:10px}}
+</style>
+{% block css %}{% endblock %}
+</head>
+<body>
+<div class="topbar">
+ <a class="logo" href="/">
+  <span class="logo-dot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+   <circle cx="12" cy="12" r="9" stroke="#0b1220" stroke-width="2.6"/>
+   <circle cx="12" cy="12" r="2.4" fill="#0b1220"/>
+   <path d="M12 12L19 5" stroke="#0b1220" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+  SoulFork Radar</a>
+ <nav>
+  <a href="/" {% if pagina=='busca' %}class="on"{% endif %}>Buscar</a>
+  {% if rid %}
+  <a href="/rodada/{{rid}}/leads" {% if pagina=='leads' %}class="on"{% endif %}>Leads</a>
+  <a href="/rodada/{{rid}}/analises" {% if pagina=='analises' %}class="on"{% endif %}>Análises</a>
+  {% endif %}
+  <a href="/banco" {% if pagina=='banco' %}class="on"{% endif %}>Todos os leads</a>
+  <a href="/configuracao" {% if pagina=='config' %}class="on"{% endif %}>Configuração</a>
+ </nav>
+ <div class="direita">prospecção no Google Maps · sinais de presença digital</div>
+</div>
+<div class="wrap">{% block conteudo %}{% endblock %}</div>
+<script>
+function copiar(t,el){navigator.clipboard.writeText(t).then(()=>{
+ const o=el.textContent; el.textContent='✓'; setTimeout(()=>el.textContent=o,900);});}
+</script>
+{% block js %}{% endblock %}
+</body></html>

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% set pagina = 'leads' %}
+{% block titulo %}Leads — {{ r.nicho }} em {{ r.local }}{% endblock %}
+{% block css %}
+<style>
+.cab{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:18px}
+.cab .exp{margin-left:auto;display:flex;gap:8px}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+.filtros .sep{width:1px;height:22px;background:var(--linha);margin:0 4px}
+.filtros select{padding:7px 10px;border:1px solid var(--linha);border-radius:8px;font-size:13px;
+ background:var(--card);color:var(--fraco)}
+.tabela{overflow-x:auto}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco);
+ text-align:left;padding:12px 14px;border-bottom:1px solid var(--linha);white-space:nowrap}
+td{padding:14px;border-bottom:1px solid var(--linha);vertical-align:top;font-size:13.5px}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:#fbfbf9}
+.num{color:var(--fraco);font-variant-numeric:tabular-nums;width:34px}
+.emp b{font-size:14.5px;display:block;margin-bottom:2px}
+.emp .cat{color:var(--fraco);font-size:12.5px}
+.emp .badge{margin-top:6px}
+.oport{max-width:300px}
+.oport .score{font-weight:700;font-size:15px}
+.oport p{margin-top:3px;color:var(--txt)}
+.nota{white-space:nowrap;font-variant-numeric:tabular-nums}
+.nota .est{color:#c99312}
+.contato div{white-space:nowrap;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.contato a{color:#134e2f;text-decoration:none;font-weight:600}
+.rank{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
+.rank span{display:block;font-size:10.5px;color:var(--fraco);font-weight:400}
+.canais-td{min-width:230px}
+.canal{display:flex;justify-content:space-between;align-items:center;gap:10px;
+ padding:3px 0;font-size:12.5px}
+.canal .rot{color:var(--fraco);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;
+ width:74px;flex:none}
+.canal .val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.canal .val a{text-decoration:none;color:#134e2f}
+.canal .val.off{color:var(--fraco)}
+.canal .acao{flex:none}
+.canal .acao a{font-size:11.5px;border:1px solid var(--linha);border-radius:6px;
+ padding:3px 9px;text-decoration:none;color:var(--txt)}
+.canal .acao a:hover{border-color:#134e2f;color:#134e2f}
+.vazio{padding:60px;text-align:center;color:var(--fraco)}
+</style>
+{% endblock %}
+{% block conteudo %}
+<div class="cab">
+ <div>
+  <h1>Leads</h1>
+  <div class="sub">Prospecção no Google Maps: empresas da região, sinais de presença digital e
+   por onde puxar a conversa — <b>{{ r.nicho }}</b> em <b>{{ r.local }}</b>.
+   Refine o que já veio: filtrar não gasta crédito da API.</div>
+ </div>
+ <div class="exp">
+  <a class="botao claro mini" href="/rodada/{{rid}}/exportar/csv">Baixar CSV</a>
+  <a class="botao claro mini" href="/rodada/{{rid}}/exportar/xlsx">Excel</a>
+  <a class="botao claro mini" href="/rodada/{{rid}}/exportar/pdf">Baixar PDF</a>
+  <a class="botao mini" href="/rodada/{{rid}}/analises">Ver análises →</a>
+ </div>
+</div>
+
+<div class="filtros">
+ {% set q = '&p=' + presenca + '&c=' + contato + '&o=' + ordem %}
+ <a class="chip {% if filtro=='todos' %}on{% endif %}" href="?f=todos{{q}}">Todos {{ total }}</a>
+ <a class="chip {% if filtro=='novos' %}on{% endif %}" href="?f=novos{{q}}">Novos {{ n_novos }}</a>
+ <a class="chip {% if filtro=='vistos' %}on{% endif %}" href="?f=vistos{{q}}">Já vistos {{ total - n_novos }}</a>
+ <div class="sep"></div>
+ <select onchange="location='?f={{filtro}}&p='+this.value+'&c={{contato}}&o={{ordem}}'">
+  <option value="">Presença ▾</option>
+  <option value="sem-site" {% if presenca=='sem-site' %}selected{% endif %}>Sem site</option>
+  <option value="site-quebrado" {% if presenca=='site-quebrado' %}selected{% endif %}>Site fora do ar</option>
+  <option value="sem-instagram" {% if presenca=='sem-instagram' %}selected{% endif %}>Sem Instagram</option>
+  <option value="sem-medicao" {% if presenca=='sem-medicao' %}selected{% endif %}>Sem medição (GTM/Pixel)</option>
+  <option value="lgpd" {% if presenca=='lgpd' %}selected{% endif %}>Problema de LGPD</option>
+ </select>
+ <select onchange="location='?f={{filtro}}&p={{presenca}}&c='+this.value+'&o={{ordem}}'">
+  <option value="">Contato ▾</option>
+  <option value="whatsapp" {% if contato=='whatsapp' %}selected{% endif %}>Com WhatsApp</option>
+  <option value="email" {% if contato=='email' %}selected{% endif %}>Com e-mail</option>
+  <option value="telefone" {% if contato=='telefone' %}selected{% endif %}>Com telefone</option>
+ </select>
+ <div class="sep"></div>
+ <select onchange="location='?f={{filtro}}&p={{presenca}}&c={{contato}}&o='+this.value">
+  <option value="score" {% if ordem=='score' %}selected{% endif %}>Ordenar por Oportunidade</option>
+  <option value="maps" {% if ordem=='maps' %}selected{% endif %}>Posição no Maps</option>
+  <option value="avaliacoes" {% if ordem=='avaliacoes' %}selected{% endif %}>Mais avaliações</option>
+ </select>
+</div>
+
+<div class="card tabela">
+{% if leads %}
+<table>
+ <thead><tr>
+  <th>#</th><th>Empresa</th><th>Oportunidade</th><th>Nota</th><th>Contato</th>
+  <th style="text-align:center">Ranking</th><th>Canais</th>
+ </tr></thead>
+ <tbody>
+ {% for l in leads %}
+  <tr>
+   <td class="num">{{ loop.index }}</td>
+   <td class="emp">
+    <b>{{ l.nome }}</b>
+    <span class="cat">{{ l.categoria or r.nicho }}</span><br>
+    {% if chave_do_lead(l) in novos %}<span class="badge novo">Novo</span>
+    {% else %}<span class="badge visto">Já visto</span>{% endif %}
+    <span class="badge {{ l.faixa }}">{{ rotulo_faixa(l.faixa) }}</span>
+   </td>
+   <td class="oport">
+    <span class="score">{{ l.score }}</span><span style="color:var(--fraco)">/100</span>
+    <p>{{ l.frase_oportunidade }}</p>
+   </td>
+   <td class="nota">
+    {% if l.nota %}<span class="est">★</span> {{ '%.1f'|format(l.nota)|replace('.',',') }}<br>
+     <span style="color:var(--fraco);font-size:12px">{{ l.avaliacoes }} aval.</span>
+    {% else %}<span style="color:var(--fraco)">—</span>{% endif %}
+   </td>
+   <td class="contato">
+    {% if l.contatos.whatsapp %}
+     <div><a href="https://wa.me/{{ l.contatos.whatsapp }}" target="_blank">WhatsApp</a>
+      <button class="copiar" onclick="copiar('{{ l.contatos.whatsapp }}',this)">⧉</button></div>
+    {% endif %}
+    {% if l.contatos.telefone %}
+     <div>{{ l.contatos.telefone }}
+      <button class="copiar" onclick="copiar('{{ l.contatos.telefone }}',this)">⧉</button></div>
+    {% endif %}
+    {% if l.contatos.emails %}
+     <div><a href="mailto:{{ l.contatos.emails[0] }}">{{ l.contatos.emails[0] }}</a>
+      <button class="copiar" onclick="copiar('{{ l.contatos.emails[0] }}',this)">⧉</button></div>
+    {% endif %}
+    {% if not (l.contatos.whatsapp or l.contatos.telefone or l.contatos.emails) %}
+     <span style="color:var(--fraco)">nenhum público</span>
+    {% endif %}
+   </td>
+   <td class="rank">{{ l.posicao_maps or '—' }}<span>no Maps</span></td>
+   <td class="canais-td">
+    <div class="canal"><span class="rot">Site</span>
+     {% if l.site %}<span class="val"><a href="{{ l.site }}" target="_blank">{{ l.site|replace('https://','')|replace('http://','')|truncate(24,true) }}</a></span>
+      <span class="acao"><a href="{{ l.site }}" target="_blank">Analisar</a></span>
+     {% else %}<span class="val off">sem site</span>{% endif %}
+    </div>
+    <div class="canal"><span class="rot">Instagram</span>
+     {% if l.redes.instagram %}<span class="val"><a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank">@{{ l.redes.instagram }}</a></span>
+      <span class="acao"><a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank">Analisar</a></span>
+     {% else %}<span class="val off">sem @ · achar @</span>{% endif %}
+    </div>
+    {% if l.redes.tiktok %}
+    <div class="canal"><span class="rot">TikTok</span>
+     <span class="val"><a href="https://tiktok.com/@{{ l.redes.tiktok }}" target="_blank">@{{ l.redes.tiktok }}</a></span>
+     <span class="acao"><a href="https://tiktok.com/@{{ l.redes.tiktok }}" target="_blank">Analisar</a></span>
+    </div>
+    {% endif %}
+    <div class="canal"><span class="rot">Google</span>
+     {% if l.google_maps_url %}<span class="val"><a href="{{ l.google_maps_url }}" target="_blank">abrir no Maps</a></span>
+      <span class="acao"><a href="{{ l.google_maps_url }}" target="_blank">Analisar</a></span>
+     {% else %}<span class="val off">—</span>{% endif %}
+    </div>
+   </td>
+  </tr>
+ {% endfor %}
+ </tbody>
+</table>
+{% else %}
+<div class="vazio">Nenhum lead passa nesses filtros. Afrouxe um deles.</div>
+{% endif %}
+</div>
+{% endblock %}

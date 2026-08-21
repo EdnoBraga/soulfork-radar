@@ -1,0 +1,80 @@
+name: Instalador Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pillow
+
+      - name: Rodar testes
+        run: |
+          python tests/test_e2e.py
+          python tests/test_web.py
+
+      - name: Gerar ícone
+        run: python build_win/gerar_icone.py
+
+      - name: Empacotar (PyInstaller)
+        run: pyinstaller radar.spec --noconfirm
+
+      - name: Fumaça no executável
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "dist/SoulForkRadar/SoulForkRadar.exe"
+          Start-Sleep -Seconds 12
+          $r = Invoke-WebRequest -Uri "http://localhost:8760/" -UseBasicParsing -TimeoutSec 10
+          if ($r.StatusCode -ne 200) { exit 1 }
+          $c = Invoke-WebRequest -Uri "http://localhost:8760/configuracao" -UseBasicParsing -TimeoutSec 10
+          if ($c.StatusCode -ne 200) { exit 1 }
+          Get-Process SoulForkRadar | Stop-Process -Force
+          Write-Host "servidor local respondeu — ok"
+
+      - name: Definir versão
+        id: versao
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "v=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "v=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Montar instalador (Inno Setup)
+        shell: pwsh
+        env:
+          RADAR_VERSAO: ${{ steps.versao.outputs.v }}
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" build_win\instalador.iss
+
+      - name: Guardar instalador (artefato)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulForkRadar-instalador
+          path: dist/SoulForkRadar-*-instalador.exe
+          retention-days: 30
+
+      - name: Publicar release (só em tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SoulForkRadar-*-instalador.exe
+          generate_release_notes: true
