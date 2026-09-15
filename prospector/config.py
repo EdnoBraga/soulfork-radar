@@ -61,18 +61,35 @@ def chave_places() -> str:
     return os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()
 
 
-def salvar_chave_places(chave: str) -> Path:
-    """Grava a chave no .env do usuário e aplica no processo atual."""
-    chave = (chave or "").strip().strip('"').strip("'")
+def _gravar_env(**pares: str) -> Path:
+    """Grava chaves no .env do usuário e aplica no processo atual."""
     alvo = pasta_dados() / ".env"
     linhas: list[str] = []
     if alvo.exists():
         linhas = [l for l in alvo.read_text(encoding="utf-8").splitlines()
-                  if not l.strip().startswith("GOOGLE_PLACES_API_KEY")]
-    linhas.append(f"GOOGLE_PLACES_API_KEY={chave}")
+                  if not any(l.strip().startswith(k) for k in pares)]
+    for chave, valor in pares.items():
+        valor = (valor or "").strip().strip('"').strip("'")
+        linhas.append(f"{chave}={valor}")
+        os.environ[chave] = valor
     alvo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
-    os.environ["GOOGLE_PLACES_API_KEY"] = chave
     return alvo
+
+
+def salvar_chave_places(chave: str) -> Path:
+    return _gravar_env(GOOGLE_PLACES_API_KEY=chave)
+
+
+def token_instagram() -> str:
+    return os.environ.get("META_IG_TOKEN", "").strip()
+
+
+def ig_user_id() -> str:
+    return os.environ.get("META_IG_USER_ID", "").strip()
+
+
+def salvar_token_instagram(token: str, user_id: str) -> Path:
+    return _gravar_env(META_IG_TOKEN=token, META_IG_USER_ID=user_id)
 
 
 def carregar_nichos(caminho: str | Path | None = None) -> dict:

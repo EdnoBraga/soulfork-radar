@@ -88,10 +88,20 @@ ou sem nenhum canal público é descartada.
 
 ## Instagram e TikTok — seguidores
 
-A ferramenta entrega o **@ e o link** dos perfis (achados no site e no cadastro).
-Contagem de seguidores não é coletada automaticamente — as APIs oficiais não permitem
-consultar perfil de terceiros. O fluxo da operação: os leads que forem para a fila são
-enriquecidos no HypeAuditor (já conectado no Claude), só os que valem o crédito.
+A varredura entrega o **@ e o link** dos perfis (achados no site e no cadastro). Seguidores
+**não** entram na varredura: são consultados **sob demanda, um lead por clique**, na coluna
+Instagram da tela de leads.
+
+A fonte é o endpoint **business_discovery** da Graph API da Meta, que existe exatamente para
+consultar perfis de terceiros. Exige um token de uma conta Comercial ou Criador de conteúdo
+vinculada a uma Página do Facebook — o passo a passo está na tela **Configuração**. A Meta
+libera cerca de **200 consultas por hora**; por isso a consulta é manual.
+
+- Perfil **pessoal ou privado** não é devolvido pela API. Isso aparece como
+  **"não disponível"** e nunca como "sem Instagram".
+- Além dos seguidores vem a **data da última publicação** — perfil parado costuma valer mais
+  como argumento de venda que número de seguidores.
+- O TikTok segue sem contagem: não há API oficial equivalente.
 
 ## Arquivos
 

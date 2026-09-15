@@ -38,6 +38,47 @@ e o Google dá crédito mensal gratuito que cobre centenas de buscas.</p>
  seu computador, não de um site.</p>
 </div>
 
+<h2 style="margin-top:34px">Seguidores do Instagram (opcional)</h2>
+<p class="sub">Com um token da Meta, o Radar mostra seguidores e a data da última publicação
+dos leads — um lead por clique, na tela de leads. Perfil pessoal não aparece na API:
+isso é "não disponível", não é "sem Instagram".</p>
+
+<div class="card" style="margin-top:14px;padding:22px;max-width:720px">
+ <form method="post">
+  <label style="font-weight:600;font-size:13.5px">Token de acesso da Meta</label>
+  <div style="display:flex;gap:10px;margin-top:8px">
+   <input name="token" placeholder="EAAG…" autocomplete="off" spellcheck="false"
+    value="" style="flex:1;padding:11px 13px;border:1px solid var(--linha);border-radius:10px;
+    font:13px ui-monospace,Consolas,monospace">
+   <button class="botao" type="submit">Testar e salvar</button>
+  </div>
+ </form>
+ <p class="sub" style="margin-top:10px">
+  {% if tem_token %}Já existe um token salvo e funcionando.{% else %}Nenhum token salvo ainda.{% endif %}
+ </p>
+</div>
+
+<div class="card" style="margin-top:14px;padding:22px;max-width:720px">
+ <b style="font-size:14.5px">Como gerar o token (10–15 minutos, uma vez só)</b>
+ <ol style="margin:12px 0 0 18px;line-height:2;font-size:14px">
+  <li>No app do Instagram, confirme que seu perfil é <b>Comercial</b> ou <b>Criador de conteúdo</b>
+   (Configurações → Tipo de conta) e que está <b>vinculado a uma Página do Facebook</b></li>
+  <li>Acesse <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a>
+   e crie um app do tipo <b>Empresa</b></li>
+  <li>Abra a <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noopener">Graph API Explorer</a>,
+   selecione o app e adicione as permissões <code>instagram_basic</code>,
+   <code>pages_show_list</code> e <code>pages_read_engagement</code></li>
+  <li>Clique em <b>Generate Access Token</b> e autorize com sua conta</li>
+  <li>Troque o token curto por um de <b>longa duração</b> (60 dias) na
+   <a href="https://developers.facebook.com/tools/debug/accesstoken" target="_blank" rel="noopener">ferramenta de depuração</a>
+   → <b>Extend Access Token</b></li>
+  <li>Cole o token aqui em cima. O Radar descobre sozinho o ID da sua conta do Instagram</li>
+ </ol>
+ <p class="sub" style="margin-top:12px">O token vale ~60 dias e vence — quando parar de
+ funcionar, repita os passos 4 e 5 e cole o novo. A Meta libera cerca de
+ <b>200 consultas por hora</b>, por isso a consulta é sob demanda e não roda na busca.</p>
+</div>
+
 <p class="sub" style="margin-top:16px">Seus dados (chave, banco de leads e exportações) ficam em:
 <code>{{ pasta }}</code></p>
 {% endblock %}
