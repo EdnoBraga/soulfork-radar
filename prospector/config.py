@@ -40,7 +40,8 @@ def carregar_env(caminho: str | Path | None = None) -> None:
 
 
 def chave_places() -> str:
-    return os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()
+    # painel de hospedagem costuma receber o valor colado com aspas
+    return os.environ.get("GOOGLE_PLACES_API_KEY", "").strip().strip("\"'").strip()
 
 
 def _gravar_env(**pares: str) -> Path:

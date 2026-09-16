@@ -59,4 +59,36 @@ assert len(leads) == 90, len(leads)                  # acabaram os termos: entre
 leads, stats = rodar(20, ["a"])
 assert [l.posicao_maps for l in sorted(leads, key=lambda l: l.posicao_maps)][:3] == [1, 2, 3]
 
-print("✓ busca: para no limite e conta as chamadas")
+# chave inválida: para no primeiro termo e vira erro, não "0 empresas"
+class PlacesChaveRuim(PlacesFalso):
+    tentativas = 0
+
+    def buscar(self, texto, **kw):
+        PlacesChaveRuim.tentativas += 1
+        raise pipeline.PlacesError("chave inválida")
+        yield
+
+
+pipeline.PlacesClient = PlacesChaveRuim
+try:
+    rodar(20, ["a", "b", "c"])
+    raise AssertionError("chave inválida não virou erro")
+except pipeline.PlacesError:
+    assert PlacesChaveRuim.tentativas == 1, PlacesChaveRuim.tentativas
+
+
+# falha de rede em todos os termos: erro claro
+class PlacesSemRede(PlacesFalso):
+    def buscar(self, texto, **kw):
+        raise ConnectionError("sem rede")
+        yield
+
+
+pipeline.PlacesClient = PlacesSemRede
+try:
+    rodar(20, ["a", "b"])
+    raise AssertionError("falha total não virou erro")
+except RuntimeError as e:
+    assert "Nenhuma consulta" in str(e), e
+
+print("✓ busca: para no limite, conta as chamadas e não esconde erro")

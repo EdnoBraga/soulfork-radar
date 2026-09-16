@@ -219,6 +219,7 @@ def configuracao():
                 erro = f"Não consegui falar com o Google: {e}"
     return render_template("configuracao.html", pagina="config",
                            tem_chave=bool(config.chave_places()),
+                           final_chave=config.chave_places()[-4:],
                            tem_token=bool(config.token_instagram() and config.ig_user_id()),
                            pasta=str(config.pasta_dados()), msg=msg, erro=erro)
 
