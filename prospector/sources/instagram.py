@@ -62,16 +62,30 @@ def _traduzir(erro: dict) -> Exception:
 
 def descobrir_conta(token: str) -> tuple[str, str]:
     """Acha o ig-user-id ligado ao token. Devolve (id, @usuario)."""
-    dados = _chamar("me/accounts", token,
-                    fields="instagram_business_account{id,username}")
-    for pagina in dados.get("data", []):
-        conta = pagina.get("instagram_business_account")
+    dados = _chamar("me/accounts", token, fields=(
+        "name,instagram_business_account{id,username},"
+        "connected_instagram_account{id,username}"))
+    paginas = dados.get("data", [])
+    for pagina in paginas:
+        # instagram_business_account é o vínculo clássico; connected_ cobre
+        # perfis ligados pelo app do Instagram, que só aparecem nesse campo.
+        conta = (pagina.get("instagram_business_account")
+                 or pagina.get("connected_instagram_account"))
         if conta and conta.get("id"):
             return conta["id"], conta.get("username", "")
+    if not paginas:
+        raise InstagramError(
+            "O token não recebeu acesso a nenhuma Página do Facebook. "
+            "Gere o token de novo e, na janela de autorização da Meta, marque "
+            "a Página da SoulFork (ou \"todas as Páginas atuais e futuras\") "
+            "antes de continuar."
+        )
+    nomes = ", ".join(p.get("name") or "sem nome" for p in paginas[:5])
     raise InstagramError(
-        "Esse token não tem nenhuma conta do Instagram ligada a uma Página do "
-        "Facebook. Confira se o perfil é Comercial/Criador e está vinculado a "
-        "uma Página."
+        f"O token vê {len(paginas)} Página(s) — {nomes} — mas nenhuma com "
+        "Instagram vinculado. Confira no app do Instagram se o perfil é "
+        "Comercial/Criador e está ligado a essa Página; se estiver, refaça a "
+        "autorização marcando também a conta do Instagram."
     )
 
 
