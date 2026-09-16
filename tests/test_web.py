@@ -39,12 +39,15 @@ novos = set()
 for l in leads:
     if banco.salvar(l): novos.add(chave_do_lead(l))
 banco.registrar_posicoes("dentista|brasília, df", leads)
+banco.registrar_rodada("dentista", "Brasília, DF", len(leads), len(novos), rid="teste123abc",
+                       dados={"novos": sorted(novos), "anteriores": {}, "chamadas": 2,
+                              "chaves": [chave_do_lead(l) for l in leads]})
 banco.fechar()
 
 RODADAS["teste123abc"] = {
     "status": "pronta", "nicho": "dentista", "local": "Brasília, DF",
     "quantidade": 4, "log": ["ok"], "leads": [l.to_dict() for l in leads],
-    "novos": sorted(novos), "anteriores": {},
+    "novos": sorted(novos), "anteriores": {}, "chamadas": 2,
     "criada_em": datetime.now().astimezone().isoformat(timespec="seconds"),
     "terminou_em": datetime.now().astimezone().isoformat(timespec="seconds"),
 }
@@ -55,7 +58,7 @@ def check(cond, msg):
     if not cond: falhas.append(msg)
 
 r = c.get("/");                              check(r.status_code == 200, f"/ -> {r.status_code}")
-check("Seus clientes" in r.text, "home sem hero")
+check("Diagnóstico antes" in r.text and "Radar" not in r.text, "home sem hero novo / com marca antiga")
 check("Dentistas" in r.text, "home sem placeholder de sugestões")
 
 r = c.get("/rodada/teste123abc/leads");      check(r.status_code == 200, f"leads -> {r.status_code}")
@@ -81,6 +84,62 @@ r = c.get("/rodada/teste123abc/exportar/xlsx"); check(r.status_code == 200 and l
 r = c.get("/rodada/teste123abc/exportar/pdf");  check(r.status_code == 200 and r.data[:4] == b"%PDF", "pdf falhou")
 
 r = c.get("/banco");                         check(r.status_code == 200 and "Sorriso Norte" in r.text, "banco falhou")
+
+# motivos da nota e custo da busca
+r = c.get("/rodada/teste123abc/leads")
+check("Por que" in r.text and "Site sem HTTPS" in r.text, "motivos da nota ausentes")
+check("2</b> chamada(s) ao Google" in r.text, "custo da busca ausente")
+
+# andamento do lead
+chave_clinica = chave_do_lead(leads[0])
+r = c.post("/lead/status", json={"chave": chave_clinica, "status": "contatado"})
+check(r.status_code == 200 and r.json["ok"], f"mudar status falhou: {r.status_code}")
+r = c.post("/lead/status", json={"chave": chave_clinica, "status": "inventado"})
+check(r.status_code == 400, "status inválido foi aceito")
+r = c.post("/lead/status", json={"chave": "place:nao_existe", "status": "ganho"})
+check(r.status_code == 404, "lead inexistente foi aceito")
+r = c.get("/rodada/teste123abc/leads?s=contatado")
+check("Clínica Vida Plena" in r.text and "BSB Contábil" not in r.text, "filtro de andamento errado")
+r = c.get("/banco?s=contatado")
+check("Clínica Vida Plena" in r.text and "BSB Contábil" not in r.text, "filtro de andamento no banco errado")
+check("3 ainda não abordados" in c.get("/banco").text, "resumo de não abordados não mudou")
+
+# rodada sobrevive a reinício do servidor (some da memória, volta do banco)
+RODADAS.clear()
+r = c.get("/rodada/teste123abc/leads")
+check(r.status_code == 200 and "Sorriso Norte Odonto" in r.text, "rodada não reabriu do banco")
+check("/rodada/teste123abc/leads" in c.get("/").text, "histórico sem a rodada salva")
+check(c.get("/rodada/naoexiste/leads").status_code == 404, "rodada inexistente não deu 404")
+
+# resolução de nicho
+nichos = {"odontologia": {"termos": ["clínica odontológica", "dentista"], "tipo": "dentist"},
+          "restaurante": {"termos": ["restaurante", "pizzaria", "hamburgueria"], "tipo": "restaurant"}}
+check(config.termos_do_nicho("Odontologia", nichos) == ("odontologia", ["clínica odontológica", "dentista"], "dentist"),
+      "nome do nicho não expandiu")
+check(config.termos_do_nicho("Dentistas", nichos) == ("odontologia", ["Dentistas"], "dentist"),
+      "termo do nicho não virou busca única com tipo")
+check(config.termos_do_nicho("pizzaria", nichos)[1] == ["pizzaria"], "pizzaria puxou hamburgueria")
+check(config.termos_do_nicho("tatuagem", nichos) == (None, ["tatuagem"], None), "termo livre errado")
+
+# login: com FIND_SENHA definida, nada abre sem entrar
+os.environ["FIND_SENHA"] = "senha-de-teste-123"
+anon = app.test_client()
+r = anon.get("/banco")
+check(r.status_code == 302 and "/entrar" in r.headers["Location"], "banco abriu sem login")
+check(anon.get("/configuracao").status_code == 302, "configuração abriu sem login")
+check(anon.get("/rodada/teste123abc/exportar/csv").status_code == 302, "exportação abriu sem login")
+r = anon.post("/lead/status", json={"chave": chave_clinica, "status": "ganho"})
+check(r.status_code == 401, f"POST sem login não deu 401: {r.status_code}")
+check(anon.get("/saude").text == "ok", "rota de saúde exige login")
+r = anon.post("/entrar", data={"senha": "errada", "proximo": "/banco"})
+check(r.status_code == 200 and "Senha incorreta" in r.text, "senha errada não foi recusada")
+r = anon.post("/entrar", data={"senha": "senha-de-teste-123", "proximo": "//evil.com"})
+check(r.status_code == 302 and r.headers["Location"] == "/", "redirecionou para fora do site")
+check(anon.get("/banco").status_code == 200, "login certo não abriu o banco")
+check("Sair" in anon.get("/banco").text, "link de sair ausente")
+anon.get("/sair")
+check(anon.get("/banco").status_code == 302, "sair não encerrou a sessão")
+del os.environ["FIND_SENHA"]
 
 # frases de oportunidade coerentes
 por_nome = {l.nome: l for l in leads}

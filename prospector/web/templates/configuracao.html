@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block titulo %}Configuração · SoulFork Radar{% endblock %}
+{% block titulo %}Configuração · SoulFork Find{% endblock %}
 {% block conteudo %}
 <h1>Configuração</h1>
-<p class="sub">A chave conecta o Radar ao Google Maps. Ela é sua, fica só neste computador,
+<p class="sub">A chave conecta o Find ao Google Maps. Ela fica guardada no servidor,
 e o Google dá crédito mensal gratuito que cobre centenas de buscas.</p>
 
 {% if msg %}<div class="card" style="border-left:4px solid #2e7d32;margin-top:18px;padding:14px 18px">✓ {{ msg }}</div>{% endif %}
@@ -27,19 +27,19 @@ e o Google dá crédito mensal gratuito que cobre centenas de buscas.</p>
  <b style="font-size:14.5px">Como criar a chave (5–10 minutos, uma vez só)</b>
  <ol style="margin:12px 0 0 18px;line-height:2;font-size:14px">
   <li>Acesse <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> e entre com sua conta Google</li>
-  <li>Crie um projeto (qualquer nome, ex.: <i>radar</i>)</li>
+  <li>Crie um projeto (qualquer nome, ex.: <i>find</i>)</li>
   <li>No menu, vá em <b>APIs e serviços → Biblioteca</b>, procure <b>Places API (New)</b> e clique em <b>Ativar</b></li>
   <li>Ative o <b>faturamento</b> do projeto (pede cartão; o crédito gratuito mensal cobre o uso normal antes de qualquer cobrança)</li>
   <li>Em <b>APIs e serviços → Credenciais</b>, clique <b>Criar credenciais → Chave de API</b></li>
   <li>Copie a chave (começa com <code>AIza</code>) e cole aqui em cima</li>
  </ol>
  <p class="sub" style="margin-top:12px">Dica de segurança: em "Restrições de API" da chave,
- restrinja à <b>Places API (New)</b>. Não use restrição por site/referer — o Radar chama do
- seu computador, não de um site.</p>
+ restrinja à <b>Places API (New)</b>. Não use restrição por site/referer — o Find chama do
+ servidor, não do navegador.</p>
 </div>
 
 <h2 style="margin-top:34px">Seguidores do Instagram (opcional)</h2>
-<p class="sub">Com um token da Meta, o Radar mostra seguidores e a data da última publicação
+<p class="sub">Com um token da Meta, o Find mostra seguidores e a data da última publicação
 dos leads — um lead por clique, na tela de leads. Perfil pessoal não aparece na API:
 isso é "não disponível", não é "sem Instagram".</p>
 
@@ -72,7 +72,7 @@ isso é "não disponível", não é "sem Instagram".</p>
   <li>Troque o token curto por um de <b>longa duração</b> (60 dias) na
    <a href="https://developers.facebook.com/tools/debug/accesstoken" target="_blank" rel="noopener">ferramenta de depuração</a>
    → <b>Extend Access Token</b></li>
-  <li>Cole o token aqui em cima. O Radar descobre sozinho o ID da sua conta do Instagram</li>
+  <li>Cole o token aqui em cima. O Find descobre sozinho o ID da sua conta do Instagram</li>
  </ol>
  <p class="sub" style="margin-top:12px">O token vale ~60 dias e vence — quando parar de
  funcionar, repita os passos 4 e 5 e cole o novo. A Meta libera cerca de

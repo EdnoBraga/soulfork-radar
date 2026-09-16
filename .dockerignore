@@ -1,0 +1,10 @@
+.git
+.env
+saida/
+tests/
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
+*.md

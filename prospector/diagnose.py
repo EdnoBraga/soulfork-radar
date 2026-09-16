@@ -64,6 +64,17 @@ def _texto(html: str) -> str:
         return html
 
 
+def _casca_js(sopa: BeautifulSoup) -> bool:
+    """HTML com quase nenhum texto e nenhum link = app montado no navegador.
+    ponytail: heurística de limiar fixo; o upgrade é renderizar num navegador
+    headless, mais caro por lead."""
+    import copy
+    corpo = copy.copy(sopa)
+    for t in corpo(["script", "style", "noscript", "template"]):
+        t.decompose()
+    return len(corpo.get_text(" ", strip=True)) < 300 and len(corpo.find_all("a", href=True)) < 3
+
+
 def analisar(coleta: ColetaSite) -> Diagnostico:
     d = Diagnostico()
 
@@ -118,6 +129,7 @@ def analisar(coleta: ColetaSite) -> Diagnostico:
         d.tem_formulario = bool(sopa.find("form")) or bool(
             re.search(r"(wpcf7|elementor-form|rd-station|typeform|forms\.gle|hbspt\.forms)", todo, re.I)
         )
+        d.renderizado_js = _casca_js(sopa)
     else:
         d.responsivo = "viewport" in html.lower()
         d.tem_formulario = "<form" in html.lower()
@@ -152,6 +164,20 @@ def analisar(coleta: ColetaSite) -> Diagnostico:
             for t in (BeautifulSoup(pg.html, "html.parser").find_all(["input", "textarea", "select", "label"]))
         ) if sopa else ""
         d.coleta_dado_sensivel = bool(RE_CAMPO_SENSIVEL.search(campos))
+
+    # Site montado por JavaScript: o que depende do DOM renderizado vira
+    # "não verificável". O que mora no HTML servido (HTTPS, viewport, sitemap,
+    # tag encontrada) continua valendo.
+    if d.renderizado_js:
+        d.tem_formulario = None
+        d.coleta_dado_sensivel = None
+        if not coleta.politica_url:
+            d.tem_politica_privacidade = None
+            d.politica_quebrada = None
+        if d.tem_gtm is False:
+            d.tem_gtm = None
+        if d.tem_meta_pixel is False:
+            d.tem_meta_pixel = None
 
     # CMS
     m = RE_GERADOR.search(html)

@@ -1,29 +1,84 @@
-"""Interface web do SoulFork Radar — roda local: python -m prospector.web"""
+"""Interface web do SoulFork Find. Local: python -m prospector.web · servidor: wsgi.py"""
 from __future__ import annotations
 
-import io
+import hmac
 import json
+import os
+import secrets
+import tempfile
 import threading
+import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from flask import (Flask, Response, abort, jsonify, redirect, render_template,
-                   request, send_file, url_for)
+from flask import (Flask, abort, jsonify, redirect, render_template, request,
+                   send_file, session, url_for)
 
 from .. import config, export
 from ..analise import comparar_posicoes, resumir
 from ..frases import rotulo_faixa
 from ..models import Lead
 from ..pipeline import rodar
-from ..store import Banco, chave_do_lead
+from ..store import STATUS, Banco, chave_do_lead
 from ..sugestoes import CIDADES, SUGESTOES, UFS
 
 app = Flask(__name__)
 config.carregar_env()
+# sem FIND_SECRET_KEY (só no uso local) a sessão vale até o processo reiniciar
+app.secret_key = os.environ.get("FIND_SECRET_KEY") or secrets.token_hex(32)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  PERMANENT_SESSION_LIFETIME=timedelta(days=7))
 
-# rodadas em andamento e concluídas nesta sessão do servidor
+# Senha única de administrador. Sem FIND_SENHA o app fica aberto — só serve
+# para rodar na própria máquina; o wsgi.py de produção se recusa a subir assim.
+ROTAS_PUBLICAS = {"login", "saude", "static"}
+
+
+@app.before_request
+def exigir_login():
+    senha = os.environ.get("FIND_SENHA", "")
+    if not senha or request.endpoint in ROTAS_PUBLICAS or session.get("logado"):
+        return None
+    if request.path.startswith(("/lead/", "/rodada/")) and request.method == "POST":
+        return jsonify(ok=False, erro="sessão expirada, entre de novo"), 401
+    return redirect(url_for("login", proximo=request.full_path.rstrip("?")))
+
+
+@app.route("/entrar", methods=["GET", "POST"], endpoint="login")
+def entrar():
+    erro = None
+    proximo = request.values.get("proximo") or "/"
+    if not proximo.startswith("/") or proximo.startswith("//"):
+        proximo = "/"   # nada de redirecionar para fora do site
+    if request.method == "POST":
+        digitada = (request.form.get("senha") or "").encode()
+        if hmac.compare_digest(digitada, os.environ.get("FIND_SENHA", "").encode()):
+            session.clear()
+            session["logado"] = True
+            session.permanent = True
+            return redirect(proximo)
+        time.sleep(1)   # ponytail: freio simples contra força bruta; limite por IP se virar alvo
+        erro = "Senha incorreta."
+    return render_template("login.html", erro=erro, proximo=proximo)
+
+
+@app.get("/sair")
+def sair():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.get("/saude")
+def saude():
+    return "ok"
+
+# rodadas em andamento nesta sessão; as concluídas também ficam no banco
 RODADAS: dict[str, dict] = {}
+
+# Text Search da Places API (New), tabela de ago/2026 do LEIA-ME
+PRECO_CHAMADA_USD = 0.032
+ROTULO_STATUS = dict(STATUS)
 
 
 def _dict_para_lead(d: dict) -> Lead:
@@ -55,54 +110,60 @@ def _executar_busca(rid: str, nicho: str, local: str, quantidade: int) -> None:
         chave = config.chave_places()
         if not chave:
             raise RuntimeError(
-                "Falta a chave da Google Places API. Copie .env.example para .env, "
-                "cole a chave e reinicie o servidor."
+                "Falta a chave da Google Places API — cadastre em Configuração."
             )
+        grupo, termos, tipo = config.termos_do_nicho(nicho)
+        if len(termos) > 1:
+            log(f"nicho '{grupo}': {len(termos)} variações de busca")
+        elif quantidade > 60:
+            log("o Google entrega no máximo 60 empresas por termo — "
+                "busque pelo nome do nicho para usar as variações")
+        stats: dict = {}
         leads = rodar(
-            nicho, [nicho], local,
+            nicho, termos, local,
             chave_places=chave,
             max_por_termo=min(quantidade, 60),
+            tipo=tipo,
             progresso=log,
-        )
-        # quantidade acima de 60: completa com variações do termo
-        if quantidade > 60 and len(leads) < quantidade:
-            extras = rodar(
-                nicho, [f"{nicho} perto de", f"melhor {nicho}"], local,
-                chave_places=chave,
-                max_por_termo=60,
-                progresso=log,
-            )
-            vistos = {l.place_id for l in leads if l.place_id}
-            for l in extras:
-                if l.place_id not in vistos and len(leads) < quantidade:
-                    leads.append(l)
-        leads = leads[:quantidade]
+            limite_total=quantidade,
+            stats=stats,
+        )[:quantidade]
 
         banco = Banco(config.caminho_banco())
         busca_id = f"{nicho}|{local}".lower()
-        anteriores = {}
         novos = set()
         for lead in leads:
             if banco.salvar(lead):
                 novos.add(chave_do_lead(lead))
         banco.registrar_posicoes(busca_id, leads)
         anteriores = banco.posicoes_anteriores(busca_id)
-        banco.registrar_rodada(nicho, local, len(leads), len(novos))
+        terminou = datetime.now().astimezone().isoformat(timespec="seconds")
+        extra = {"novos": sorted(novos), "anteriores": anteriores,
+                 "chamadas": stats.get("chamadas", 0), "quantidade": quantidade,
+                 "terminou_em": terminou}
+        banco.registrar_rodada(nicho, local, len(leads), len(novos), rid=rid,
+                               dados={**extra, "chaves": [chave_do_lead(l) for l in leads]})
         banco.fechar()
 
-        r.update(
-            status="pronta",
-            leads=[l.to_dict() for l in leads],
-            novos=sorted(novos),
-            anteriores=anteriores,
-            terminou_em=datetime.now().astimezone().isoformat(timespec="seconds"),
-        )
+        r.update(status="pronta", leads=[l.to_dict() for l in leads], **extra)
     except Exception as e:
         r.update(status="erro", erro=str(e))
 
 
-def _leads_da_rodada(rid: str) -> tuple[dict, list[Lead]]:
+def _rodada(rid: str) -> dict | None:
+    """Memória primeiro; se o servidor reiniciou, reabre do banco."""
     r = RODADAS.get(rid)
+    if r is None:
+        banco = Banco(config.caminho_banco())
+        r = banco.carregar_rodada(rid)
+        banco.fechar()
+        if r is not None:
+            RODADAS[rid] = r
+    return r
+
+
+def _leads_da_rodada(rid: str) -> tuple[dict, list[Lead]]:
+    r = _rodada(rid)
     if not r or r.get("status") != "pronta":
         abort(404)
     return r, [_dict_para_lead(d) for d in r["leads"]]
@@ -166,14 +227,19 @@ def configuracao():
 def inicio():
     banco = Banco(config.caminho_banco())
     resumo = banco.resumo()
+    salvas = banco.listar_rodadas(limite=8)
     banco.fechar()
-    historico = [
-        {"id": rid, **{k: r[k] for k in ("nicho", "local", "status") if k in r},
-         "total": len(r.get("leads", []))}
-        for rid, r in sorted(RODADAS.items(), key=lambda kv: kv[1]["criada_em"], reverse=True)
-    ]
+    historico = {s["rid"]: {"id": s["rid"], "nicho": s["nicho"], "local": s["local"],
+                            "status": "pronta", "total": s["total"], "criada_em": s["criada_em"]}
+                 for s in salvas}
+    for rid, r in RODADAS.items():   # em andamento ou com erro ainda não estão no banco
+        historico.setdefault(rid, {"id": rid, "nicho": r["nicho"], "local": r["local"],
+                                   "status": r["status"], "total": len(r.get("leads", [])),
+                                   "criada_em": r["criada_em"]})
+    historico = sorted(historico.values(), key=lambda h: h["criada_em"], reverse=True)
+    nichos = [("Nicho completo — busca todas as variações", sorted(config.carregar_nichos()))]
     return render_template(
-        "busca.html", sugestoes=SUGESTOES, ufs=UFS,
+        "busca.html", sugestoes=nichos + SUGESTOES, ufs=UFS,
         cidades_json=json.dumps(CIDADES, ensure_ascii=False),
         resumo=resumo, historico=historico[:8],
         tem_chave=bool(config.chave_places()),
@@ -208,7 +274,7 @@ def buscar():
 
 @app.get("/rodada/<rid>/aguardando")
 def aguardando(rid):
-    r = RODADAS.get(rid)
+    r = _rodada(rid)
     if not r:
         abort(404)
     if r["status"] == "pronta":
@@ -218,7 +284,7 @@ def aguardando(rid):
 
 @app.get("/rodada/<rid>/status")
 def status(rid):
-    r = RODADAS.get(rid)
+    r = _rodada(rid)
     if not r:
         abort(404)
     return jsonify(status=r["status"], log=r["log"][-12:], erro=r.get("erro"))
@@ -231,16 +297,22 @@ def leads(rid):
     filtro = request.args.get("f", "todos")
     presenca = request.args.get("p", "")
     contato = request.args.get("c", "")
+    andamento = request.args.get("s", "")
+    banco = Banco(config.caminho_banco())
+    status_map = banco.status_de([chave_do_lead(l) for l in ls])
+    banco.fechar()
 
     def passa(l: Lead) -> bool:
         ch = chave_do_lead(l)
+        if andamento and status_map.get(ch, "novo") != andamento:
+            return False
         if filtro == "novos" and ch not in novos:
             return False
         if filtro == "vistos" and ch in novos:
             return False
         if presenca == "sem-site" and l.site:
             return False
-        if presenca == "sem-instagram" and l.redes.instagram:
+        if presenca == "sem-instagram" and not any(s.chave == "sem_instagram" for s in l.sinais):
             return False
         if presenca == "site-quebrado" and l.diagnostico.site_no_ar is not False:
             return False
@@ -275,8 +347,26 @@ def leads(rid):
         "leads.html", rid=rid, r=r, leads=filtrados, total=len(ls),
         novos=novos, chave_do_lead=chave_do_lead, rotulo_faixa=rotulo_faixa,
         filtro=filtro, presenca=presenca, contato=contato, ordem=ordem,
+        andamento=andamento, status_map=status_map, STATUS=STATUS,
         n_novos=sum(1 for l in ls if chave_do_lead(l) in novos),
+        custo_usd=(r.get("chamadas") or 0) * PRECO_CHAMADA_USD,
     )
+
+
+@app.post("/lead/status")
+def mudar_status():
+    d = request.get_json(silent=True) or {}
+    chave, novo = (d.get("chave") or "").strip(), d.get("status")
+    if not chave or novo not in ROTULO_STATUS:
+        return jsonify(ok=False, erro="status inválido"), 400
+    banco = Banco(config.caminho_banco())
+    existe = banco.ja_visto(chave)
+    if existe:
+        banco.marcar(chave, novo)
+    banco.fechar()
+    if not existe:
+        return jsonify(ok=False, erro="lead não encontrado"), 404
+    return jsonify(ok=True, status=novo, rotulo=ROTULO_STATUS[novo])
 
 
 @app.post("/rodada/<rid>/instagram")
@@ -296,7 +386,7 @@ def instagram(rid):
     except ig.InstagramError as e:
         return jsonify(ok=False, erro=str(e)), 200
 
-    r = RODADAS.get(rid)
+    r = _rodada(rid)
     banco = Banco(config.caminho_banco())
     for d in (r or {}).get("leads", []):
         if ((d.get("redes") or {}).get("instagram") or "").lower() != usuario.lower():
@@ -322,7 +412,7 @@ def analises(rid):
 def exportar(rid, formato):
     r, ls = _leads_da_rodada(rid)
     base = f"leads-{r['nicho']}-{r['local']}".replace(",", "").replace(" ", "-").lower()
-    tmp = Path("/tmp") / f"radar-{rid}"
+    tmp = Path(tempfile.gettempdir()) / f"find-{rid}"
     tmp.mkdir(exist_ok=True)
     if formato == "csv":
         p = export.para_csv(ls, tmp / f"{base}.csv")
@@ -348,15 +438,19 @@ def banco_view():
     resumo = banco.resumo()
     banco.fechar()
     ls = [_dict_para_lead(d) for d in dados]
+    andamento = request.args.get("s", "")
+    status_map = {chave_do_lead(l): d.get("_status") or "novo" for l, d in zip(ls, dados)}
+    if andamento:
+        ls = [l for l in ls if status_map[chave_do_lead(l)] == andamento]
     return render_template("banco.html", leads=ls, resumo=resumo,
                            rotulo_faixa=rotulo_faixa, chave_do_lead=chave_do_lead,
-                           status_map={d.get("place_id") or "": d.get("_status") for d in dados})
+                           status_map=status_map, STATUS=STATUS, andamento=andamento)
 
 
 def main():
     import webbrowser
     porta = 8760
-    print(f"\n  SoulFork Radar → http://localhost:{porta}\n")
+    print(f"\n  SoulFork Find → http://localhost:{porta}\n")
     try:
         threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{porta}")).start()
     except Exception:

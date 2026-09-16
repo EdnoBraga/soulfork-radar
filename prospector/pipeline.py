@@ -114,7 +114,12 @@ def rodar(
     consultar_cnpj: bool = True,
     respeitar_robots: bool = True,
     progresso: Callable[[str], None] | None = None,
+    limite_total: int | None = None,
+    stats: dict | None = None,
 ) -> list[Lead]:
+    """`limite_total` para de consultar termos assim que junta empresas
+    suficientes — cada termo extra custa chamada. `stats` recebe
+    'chamadas' (requisições cobradas pela Places API)."""
     def aviso(msg: str) -> None:
         if progresso:
             progresso(msg)
@@ -124,29 +129,37 @@ def rodar(
     brutos: list[tuple[dict, str]] = []
 
     for i_termo, termo in enumerate(termos):
+        if limite_total and len(brutos) >= limite_total:
+            break
         consulta = f"{termo} em {local}"
         aviso(f"buscando: {consulta}")
+        achados = novos = 0
         try:
-            achados = list(cliente.buscar(consulta, max_resultados=max_por_termo, tipo=tipo))
+            # o gerador pede página por página: parar de consumir = não pagar a próxima
+            for posicao, place in enumerate(
+                    cliente.buscar(consulta, max_resultados=max_por_termo, tipo=tipo), start=1):
+                achados += 1
+                pid = place.get("id")
+                if pid and pid in vistos:
+                    continue   # dedupe: mantém a posição da PRIMEIRA consulta em que apareceu
+                if pid:
+                    vistos.add(pid)
+                item = normalizar(place)
+                # posição no ranking só faz sentido dentro da própria consulta;
+                # termos de complemento (2º em diante) não formam ranking comparável
+                item["posicao_maps"] = posicao if i_termo == 0 else None
+                brutos.append((item, consulta))
+                novos += 1
+                if limite_total and len(brutos) >= limite_total:
+                    break
         except Exception as e:
             aviso(f"  falhou: {e}")
             continue
-        novos = 0
-        for posicao, place in enumerate(achados, start=1):
-            pid = place.get("id")
-            if pid and pid in vistos:
-                continue   # dedupe: mantém a posição da PRIMEIRA consulta em que apareceu
-            if pid:
-                vistos.add(pid)
-            item = normalizar(place)
-            # posição no ranking só faz sentido dentro da própria consulta;
-            # termos de complemento (2º em diante) não formam ranking comparável
-            item["posicao_maps"] = posicao if i_termo == 0 else None
-            brutos.append((item, consulta))
-            novos += 1
-        aviso(f"  {len(achados)} resultados, {novos} inéditos")
+        aviso(f"  {achados} resultados, {novos} inéditos")
 
-    aviso(f"{len(brutos)} empresas únicas. Analisando sites…")
+    if stats is not None:
+        stats["chamadas"] = stats.get("chamadas", 0) + cliente.chamadas
+    aviso(f"{len(brutos)} empresas únicas ({cliente.chamadas} chamada(s) ao Google). Analisando sites…")
 
     leads: list[Lead] = []
     feitos = 0

@@ -24,7 +24,8 @@ def _lacunas(lead: Lead) -> list[str]:
         faltas.append("site")
     elif lead.diagnostico.site_no_ar is False:
         faltas.append("site no ar")
-    if not lead.redes.instagram:
+    d = lead.diagnostico
+    if not lead.redes.instagram and (not lead.site or (d.site_no_ar and not d.renderizado_js)):
         faltas.append("Instagram")
     if not lead.contatos.whatsapp:
         faltas.append("WhatsApp")
@@ -80,6 +81,9 @@ def frase_oportunidade(lead: Lead) -> str:
 
     if problemas:
         return f"{nota} e presença completa, mas {_lista(problemas[:2], 'e')}."
+
+    if d.renderizado_js:
+        return f"{nota}; site montado por JavaScript — redes e formulário precisam de conferência manual."
 
     return f"{nota} e presença completa (site, Instagram e contato) — pouco a atacar."
 

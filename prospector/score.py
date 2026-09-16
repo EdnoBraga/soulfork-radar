@@ -48,6 +48,10 @@ def avaliar(lead: Lead, coleta: ColetaSite | None) -> tuple[int, str, list[Sinal
                          "O site bloqueia crawlers; o diagnóstico técnico não foi feito. Isso NÃO é um problema do site — analise manualmente antes de qualquer afirmação.",
                          0, "info"))
     else:
+        if d.renderizado_js:
+            sinais.append(_s("site_js", "Site montado por JavaScript",
+                             "O HTML entregue pelo servidor é quase vazio — o conteúdo é montado no navegador. Links de redes, formulário e aviso de cookies não são verificáveis por aqui: confira abrindo o site antes de afirmar que faltam.",
+                             0, "info"))
         if d.https is False:
             sinais.append(_s("sem_https", "Site sem HTTPS",
                              f"A versão final carregada é {d.url_final} — sem certificado. O navegador marca como 'Não seguro'.",
@@ -104,7 +108,7 @@ def avaliar(lead: Lead, coleta: ColetaSite | None) -> tuple[int, str, list[Sinal
                              "Os campos do formulário incluem dado pessoal sensível (saúde, CPF ou equivalente). A LGPD trata isso em regime mais rígido.",
                              12, "alto"))
             dor += 12
-        if (d.tem_gtm or d.tem_meta_pixel) and not tem_aviso:
+        if (d.tem_gtm or d.tem_meta_pixel) and not tem_aviso and not d.renderizado_js:
             sinais.append(_s("tag_sem_consentimento", "Tag de rastreio sem aviso de cookies",
                              "Há tag de rastreamento carregando e não identifiquei nenhum banner de consentimento.",
                              10, "alto"))
@@ -128,7 +132,9 @@ def avaliar(lead: Lead, coleta: ColetaSite | None) -> tuple[int, str, list[Sinal
         dor += 4
 
     # ---------------- DOR: redes ----------------
-    if not lead.redes.instagram:
+    # site que não abriu ou montado por JS pode ter o link: ausência não é evidência
+    ig_verificavel = not lead.site or (d.site_no_ar and not d.renderizado_js)
+    if not lead.redes.instagram and ig_verificavel:
         sinais.append(_s("sem_instagram", "Instagram não localizado",
                          "Não encontrei link de Instagram no site nem no cadastro. Para negócio local, é o canal onde a decisão acontece.",
                          8, "medio"))

@@ -1,42 +1,24 @@
 """Configuração: chaves, nichos e caminhos.
 
-Dois modos de vida:
-- Rodando do código-fonte: tudo mora na pasta do projeto (como sempre foi).
-- Rodando instalado (PyInstaller/instalador Windows): o executável mora em
-  Program Files, que não aceita escrita. Dados do usuário (.env, banco,
-  exportações, nichos.json editável) vão para uma pasta própria:
-  %APPDATA%/SoulForkRadar no Windows, ~/.soulfork-radar nos demais.
+Dados graváveis (.env, banco, exportações, nichos.json editável) moram em
+FIND_DADOS — no servidor, um volume persistente. Sem a variável, na pasta
+do projeto (desenvolvimento local).
 """
 from __future__ import annotations
 
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 
 
-def congelado() -> bool:
-    """True quando empacotado pelo PyInstaller."""
-    return getattr(sys, "frozen", False)
-
-
 def raiz_projeto() -> Path:
-    """Onde moram os arquivos EMPACOTADOS (só leitura quando instalado)."""
-    if congelado():
-        # onedir: dados ficam ao lado do executável, em _internal
-        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    """Onde mora o código (e o nichos.json padrão)."""
     return Path(__file__).resolve().parent.parent
 
 
 def pasta_dados() -> Path:
-    """Pasta gravável do usuário. No modo código-fonte é a própria raiz."""
-    if not congelado():
-        return raiz_projeto()
-    if os.name == "nt":
-        base = Path(os.environ.get("APPDATA", Path.home())) / "SoulForkRadar"
-    else:
-        base = Path.home() / ".soulfork-radar"
+    base = Path(os.environ.get("FIND_DADOS") or raiz_projeto())
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -108,6 +90,31 @@ def carregar_nichos(caminho: str | Path | None = None) -> dict:
         return {}
     dados = json.loads(alvo.read_text(encoding="utf-8"))
     return {k: v for k, v in dados.items() if not k.startswith("_")}
+
+
+def _normal(texto: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", texto.lower().strip())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return t[:-1] if t.endswith("s") else t   # "dentistas" == "dentista"
+
+
+def termos_do_nicho(texto: str, nichos: dict | None = None) -> tuple[str | None, list[str], str | None]:
+    """Casa o que o usuário digitou com o nichos.json. Devolve (nicho, termos, tipo).
+
+    - Nome do nicho ("odontologia") -> todos os termos do grupo.
+    - Um dos termos ("pizzaria") -> só ele, com o tipo do grupo. Os grupos
+      misturam sub-nichos (pizzaria e hamburgueria em "restaurante"); completar
+      uma busca de pizzaria com hamburgueria seria lixo.
+    - Nada casou -> termo livre, sem tipo."""
+    alvo = _normal(texto)
+    for nome, cfg in (carregar_nichos() if nichos is None else nichos).items():
+        termos = cfg.get("termos") or [nome]
+        if alvo == _normal(nome):
+            return nome, termos, cfg.get("tipo")
+        if alvo in {_normal(t) for t in termos}:
+            return nome, [texto], cfg.get("tipo")
+    return None, [texto], None
 
 
 def pasta_saida() -> Path:

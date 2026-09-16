@@ -44,6 +44,20 @@ CREATE TABLE IF NOT EXISTS rodadas (
 """
 
 
+# andamento comercial do lead; a chave 'novo' é o default da coluna
+STATUS = [
+    ("novo", "Não abordado"), ("contatado", "Contatado"), ("respondeu", "Respondeu"),
+    ("reuniao", "Reunião"), ("proposta", "Proposta"), ("ganho", "Ganho"),
+    ("perdido", "Perdido"), ("descartado", "Descartado"),
+]
+
+# colunas adicionadas depois da v1.0 — bancos antigos recebem via ALTER TABLE
+MIGRACOES = [
+    "ALTER TABLE rodadas ADD COLUMN rid TEXT",
+    "ALTER TABLE rodadas ADD COLUMN dados TEXT",
+]
+
+
 def _agora() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -63,6 +77,11 @@ class Banco:
         self.con = sqlite3.connect(self.caminho)
         self.con.row_factory = sqlite3.Row
         self.con.executescript(ESQUEMA)
+        for sql in MIGRACOES:
+            try:
+                self.con.execute(sql)
+            except sqlite3.OperationalError:
+                pass   # coluna já existe
         self.con.commit()
 
     def ja_visto(self, chave: str) -> bool:
@@ -111,12 +130,48 @@ class Banco:
             "SELECT chave, posicao FROM posicoes WHERE busca=? AND medido_em=?",
             (busca, anterior))}
 
-    def registrar_rodada(self, nicho: str, local: str, total: int, novos: int) -> None:
+    def registrar_rodada(self, nicho: str, local: str, total: int, novos: int,
+                         rid: str | None = None, dados: dict | None = None) -> None:
+        """`dados` guarda o que a tela precisa para reabrir a rodada depois de
+        reiniciar: chaves dos leads, quais eram novos, posições anteriores."""
         self.con.execute(
-            "INSERT INTO rodadas (nicho, local, total, novos, criada_em) VALUES (?,?,?,?,?)",
-            (nicho, local, total, novos, _agora()),
+            "INSERT INTO rodadas (nicho, local, total, novos, criada_em, rid, dados)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (nicho, local, total, novos, _agora(), rid,
+             json.dumps(dados, ensure_ascii=False) if dados else None),
         )
         self.con.commit()
+
+    def carregar_rodada(self, rid: str) -> dict | None:
+        """Reconstrói uma rodada salva. Os leads vêm da tabela `leads`, então
+        refletem o dado mais recente (andamento, seguidores)."""
+        linha = self.con.execute(
+            "SELECT nicho, local, criada_em, dados FROM rodadas WHERE rid=?", (rid,)
+        ).fetchone()
+        if not linha or not linha["dados"]:
+            return None
+        extra = json.loads(linha["dados"])
+        chaves = extra.pop("chaves", [])
+        por_chave = {r["chave"]: json.loads(r["dados"]) for r in self.con.execute(
+            f"SELECT chave, dados FROM leads WHERE chave IN ({','.join('?' * len(chaves))})",
+            chaves)} if chaves else {}
+        return {
+            **extra, "status": "pronta", "nicho": linha["nicho"], "local": linha["local"],
+            "criada_em": linha["criada_em"], "log": [],
+            "leads": [por_chave[c] for c in chaves if c in por_chave],
+        }
+
+    def listar_rodadas(self, limite: int = 8) -> list[dict]:
+        return [dict(r) for r in self.con.execute(
+            "SELECT rid, nicho, local, total, criada_em FROM rodadas"
+            " WHERE rid IS NOT NULL ORDER BY criada_em DESC LIMIT ?", (limite,))]
+
+    def status_de(self, chaves: list[str]) -> dict[str, str]:
+        if not chaves:
+            return {}
+        return {r["chave"]: r["status"] for r in self.con.execute(
+            f"SELECT chave, status FROM leads WHERE chave IN ({','.join('?' * len(chaves))})",
+            chaves)}
 
     def listar(self, nicho: str | None = None, minimo: int = 0, limite: int = 500) -> list[dict]:
         sql = "SELECT dados, status, primeira_vez_em FROM leads WHERE score >= ?"
