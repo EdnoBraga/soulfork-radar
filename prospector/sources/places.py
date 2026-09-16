@@ -61,6 +61,11 @@ class PlacesClient:
         }
         resp = self.sessao.post(ENDPOINT, json=body, headers=headers, timeout=self.timeout)
         self.chamadas += 1
+        if "API_KEY_INVALID" in resp.text:
+            raise PlacesError(
+                "O Google diz que a chave da Places API é inválida. Confira o valor de "
+                "GOOGLE_PLACES_API_KEY: sem aspas, sem espaços, começando com AIza."
+            )
         if resp.status_code == 403:
             raise PlacesError(
                 "403 da Places API. Verifique se a Places API (New) está ativada no "

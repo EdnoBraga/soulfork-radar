@@ -19,7 +19,9 @@ e o Google dá crédito mensal gratuito que cobre centenas de buscas.</p>
   </div>
  </form>
  <p class="sub" style="margin-top:10px">
-  {% if tem_chave %}Já existe uma chave salva e funcionando. Salvar outra substitui a atual.{% else %}Nenhuma chave salva ainda.{% endif %}
+  {% if tem_chave %}Há uma chave cadastrada, terminando em <b>…{{ final_chave }}</b>. Salvar outra
+  substitui a atual até o servidor reiniciar — para valer sempre, corrija a variável
+  GOOGLE_PLACES_API_KEY no painel de hospedagem.{% else %}Nenhuma chave salva ainda.{% endif %}
  </p>
 </div>
 

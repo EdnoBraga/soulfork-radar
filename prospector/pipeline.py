@@ -12,7 +12,7 @@ from .enrich.site import ColetorSite, _e164
 from .models import Contatos, Diagnostico, Lead, Redes
 from .score import avaliar
 from .sources import cnpj as fonte_cnpj
-from .sources.places import PlacesClient, normalizar
+from .sources.places import PlacesClient, PlacesError, normalizar
 
 
 def montar_lead(bruto: dict, nicho: str, busca: str) -> Lead:
@@ -127,6 +127,7 @@ def rodar(
     cliente = PlacesClient(chave_places)
     vistos: set[str] = set()
     brutos: list[tuple[dict, str]] = []
+    falha: Exception | None = None
 
     for i_termo, termo in enumerate(termos):
         if limite_total and len(brutos) >= limite_total:
@@ -152,10 +153,16 @@ def rodar(
                 novos += 1
                 if limite_total and len(brutos) >= limite_total:
                     break
+        except PlacesError:
+            raise   # chave, cota ou API desligada: os outros termos falhariam igual
         except Exception as e:
+            falha = e
             aviso(f"  falhou: {e}")
             continue
         aviso(f"  {achados} resultados, {novos} inéditos")
+
+    if not brutos and falha:
+        raise RuntimeError(f"Nenhuma consulta ao Google funcionou. Último erro: {falha}")
 
     if stats is not None:
         stats["chamadas"] = stats.get("chamadas", 0) + cliente.chamadas
