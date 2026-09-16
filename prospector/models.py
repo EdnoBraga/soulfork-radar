@@ -52,6 +52,9 @@ class Diagnostico:
     tem_formulario: bool | None = None
     coleta_dado_sensivel: bool | None = None
     tem_sitemap: bool | None = None
+    # HTML servido é casca vazia montada por JavaScript: links, formulário e
+    # banner não aparecem para o crawler, então a AUSÊNCIA deles não é evidência
+    renderizado_js: bool | None = None
     cms: str | None = None
     cms_versao: str | None = None
     titulo_pagina: str | None = None

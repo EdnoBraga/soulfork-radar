@@ -152,13 +152,7 @@ class ColetorSite:
         p = up.urlparse(url)
         raiz = f"{p.scheme}://{p.netloc}"
         if raiz not in self._robots:
-            rp = RobotFileParser()
-            rp.set_url(raiz + "/robots.txt")
-            try:
-                rp.read()
-            except Exception:
-                rp = None
-            self._robots[raiz] = rp
+            self._robots[raiz] = self._ler_robots(raiz)
         rp = self._robots[raiz]
         if rp is None:
             return True
@@ -166,6 +160,27 @@ class ColetorSite:
             return rp.can_fetch(UA, url)
         except Exception:
             return True
+
+    def _ler_robots(self, raiz: str) -> RobotFileParser | None:
+        """Lê o robots.txt com o NOSSO User-Agent e segue a RFC 9309.
+
+        O `RobotFileParser.read()` da stdlib baixa com 'Python-urllib' (que
+        muito servidor recusa) e trata 403 como "tudo proibido" — o contrário
+        da RFC, onde 4xx significa "sem restrição". Isso marcava como
+        bloqueado site que libera qualquer robô.
+        None = sem restrição."""
+        rp = RobotFileParser()
+        try:
+            resp = self.sessao.get(raiz + "/robots.txt", timeout=self.timeout)
+        except requests.RequestException:
+            return None   # a visita à página vai mostrar se o site está fora
+        if resp.status_code == 429 or resp.status_code >= 500:
+            rp.disallow_all = True   # RFC: servidor indisponível -> não rastrear
+            return rp
+        if resp.status_code >= 400:
+            return None
+        rp.parse(resp.text.splitlines())
+        return rp
 
     def _get(self, url: str, permitir_redirect: bool = True) -> PaginaSite:
         t0 = time.time()
