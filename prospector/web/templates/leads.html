@@ -41,6 +41,13 @@ tr:hover td{background:#fbfbf9}
  padding:3px 9px;text-decoration:none;color:var(--txt)}
 .canal .acao a:hover{border-color:#134e2f;color:#134e2f}
 .vazio{padding:60px;text-align:center;color:var(--fraco)}
+select.andamento{display:block;margin-top:8px;padding:4px 6px;border:1px solid var(--linha);
+ border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)}
+.motivos{margin-top:8px;font-size:12.5px}
+.motivos summary{cursor:pointer;color:#134e2f;font-weight:600}
+.motivos ul{margin:6px 0 0 16px;line-height:1.5}
+.motivos li{margin-bottom:4px}
+.motivos .viab{margin-top:6px;color:var(--fraco)}
 </style>
 {% endblock %}
 {% block conteudo %}
@@ -49,7 +56,9 @@ tr:hover td{background:#fbfbf9}
   <h1>Leads</h1>
   <div class="sub">Prospecção no Google Maps: empresas da região, sinais de presença digital e
    por onde puxar a conversa — <b>{{ r.nicho }}</b> em <b>{{ r.local }}</b>.
-   Refine o que já veio: filtrar não gasta crédito da API.</div>
+   Refine o que já veio: filtrar não gasta crédito da API.
+   {% if r.chamadas %}<br>Esta busca usou <b>{{ r.chamadas }}</b> chamada(s) ao Google
+   (≈ US$ {{ '%.2f'|format(custo_usd)|replace('.',',') }}, antes do crédito gratuito mensal).{% endif %}</div>
  </div>
  <div class="exp">
   <a class="botao claro mini" href="/rodada/{{rid}}/exportar/csv">Baixar CSV</a>
@@ -60,12 +69,15 @@ tr:hover td{background:#fbfbf9}
 </div>
 
 <div class="filtros">
- {% set q = '&p=' + presenca + '&c=' + contato + '&o=' + ordem %}
- <a class="chip {% if filtro=='todos' %}on{% endif %}" href="?f=todos{{q}}">Todos {{ total }}</a>
- <a class="chip {% if filtro=='novos' %}on{% endif %}" href="?f=novos{{q}}">Novos {{ n_novos }}</a>
- <a class="chip {% if filtro=='vistos' %}on{% endif %}" href="?f=vistos{{q}}">Já vistos {{ total - n_novos }}</a>
+ <a class="chip {% if filtro=='todos' %}on{% endif %}" href="#" onclick="return filtrar('f','todos')">Todos {{ total }}</a>
+ <a class="chip {% if filtro=='novos' %}on{% endif %}" href="#" onclick="return filtrar('f','novos')">Novos {{ n_novos }}</a>
+ <a class="chip {% if filtro=='vistos' %}on{% endif %}" href="#" onclick="return filtrar('f','vistos')">Já vistos {{ total - n_novos }}</a>
  <div class="sep"></div>
- <select onchange="location='?f={{filtro}}&p='+this.value+'&c={{contato}}&o={{ordem}}'">
+ <select onchange="filtrar('s',this.value)">
+  <option value="">Andamento ▾</option>
+  {% for v, rot in STATUS %}<option value="{{v}}" {% if andamento==v %}selected{% endif %}>{{rot}}</option>{% endfor %}
+ </select>
+ <select onchange="filtrar('p',this.value)">
   <option value="">Presença ▾</option>
   <option value="sem-site" {% if presenca=='sem-site' %}selected{% endif %}>Sem site</option>
   <option value="site-quebrado" {% if presenca=='site-quebrado' %}selected{% endif %}>Site fora do ar</option>
@@ -73,14 +85,14 @@ tr:hover td{background:#fbfbf9}
   <option value="sem-medicao" {% if presenca=='sem-medicao' %}selected{% endif %}>Sem medição (GTM/Pixel)</option>
   <option value="lgpd" {% if presenca=='lgpd' %}selected{% endif %}>Problema de LGPD</option>
  </select>
- <select onchange="location='?f={{filtro}}&p={{presenca}}&c='+this.value+'&o={{ordem}}'">
+ <select onchange="filtrar('c',this.value)">
   <option value="">Contato ▾</option>
   <option value="whatsapp" {% if contato=='whatsapp' %}selected{% endif %}>Com WhatsApp</option>
   <option value="email" {% if contato=='email' %}selected{% endif %}>Com e-mail</option>
   <option value="telefone" {% if contato=='telefone' %}selected{% endif %}>Com telefone</option>
  </select>
  <div class="sep"></div>
- <select onchange="location='?f={{filtro}}&p={{presenca}}&c={{contato}}&o='+this.value">
+ <select onchange="filtrar('o',this.value)">
   <option value="score" {% if ordem=='score' %}selected{% endif %}>Ordenar por Oportunidade</option>
   <option value="maps" {% if ordem=='maps' %}selected{% endif %}>Posição no Maps</option>
   <option value="avaliacoes" {% if ordem=='avaliacoes' %}selected{% endif %}>Mais avaliações</option>
@@ -104,10 +116,21 @@ tr:hover td{background:#fbfbf9}
     {% if chave_do_lead(l) in novos %}<span class="badge novo">Novo</span>
     {% else %}<span class="badge visto">Já visto</span>{% endif %}
     <span class="badge {{ l.faixa }}">{{ rotulo_faixa(l.faixa) }}</span>
+    {% set st = status_map.get(chave_do_lead(l), 'novo') %}
+    <select class="andamento" data-chave="{{ chave_do_lead(l) }}" onchange="mudarStatus(this)">
+     {% for v, rot in STATUS %}<option value="{{v}}" {% if st==v %}selected{% endif %}>{{rot}}</option>{% endfor %}
+    </select>
    </td>
    <td class="oport">
     <span class="score">{{ l.score }}</span><span style="color:var(--fraco)">/100</span>
     <p>{{ l.frase_oportunidade }}</p>
+    {% set motivos = l.sinais|selectattr('pontos')|list %}
+    {% if motivos %}
+    <details class="motivos"><summary>Por que {{ l.score }}?</summary>
+     <ul>{% for s in motivos %}<li><b>+{{ s.pontos }} {{ s.titulo }}</b> — {{ s.evidencia }}</li>{% endfor %}</ul>
+     {% for s in l.sinais if s.severidade == 'positivo' %}<p class="viab">{{ s.evidencia }}</p>{% endfor %}
+    </details>
+    {% endif %}
    </td>
    <td class="nota">
     {% if l.nota %}<span class="est">★</span> {{ '%.1f'|format(l.nota)|replace('.',',') }}<br>
@@ -171,6 +194,21 @@ tr:hover td{background:#fbfbf9}
 {% endif %}
 </div>
 <script>
+function filtrar(chave, valor){
+  const q = new URLSearchParams(location.search);
+  valor ? q.set(chave, valor) : q.delete(chave);
+  location.search = q.toString();
+  return false;
+}
+async function mudarStatus(sel){
+  sel.disabled = true;
+  const r = await fetch('/lead/status', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({chave: sel.dataset.chave, status: sel.value})
+  });
+  sel.disabled = false;
+  if (!r.ok) { alert('Não consegui salvar o andamento.'); }
+}
 async function seguidores(btn, usuario){
   const alvo = btn.parentElement;
   btn.disabled = true; btn.textContent = 'consultando…';

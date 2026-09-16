@@ -110,6 +110,31 @@ def carregar_nichos(caminho: str | Path | None = None) -> dict:
     return {k: v for k, v in dados.items() if not k.startswith("_")}
 
 
+def _normal(texto: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", texto.lower().strip())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return t[:-1] if t.endswith("s") else t   # "dentistas" == "dentista"
+
+
+def termos_do_nicho(texto: str, nichos: dict | None = None) -> tuple[str | None, list[str], str | None]:
+    """Casa o que o usuário digitou com o nichos.json. Devolve (nicho, termos, tipo).
+
+    - Nome do nicho ("odontologia") -> todos os termos do grupo.
+    - Um dos termos ("pizzaria") -> só ele, com o tipo do grupo. Os grupos
+      misturam sub-nichos (pizzaria e hamburgueria em "restaurante"); completar
+      uma busca de pizzaria com hamburgueria seria lixo.
+    - Nada casou -> termo livre, sem tipo."""
+    alvo = _normal(texto)
+    for nome, cfg in (carregar_nichos() if nichos is None else nichos).items():
+        termos = cfg.get("termos") or [nome]
+        if alvo == _normal(nome):
+            return nome, termos, cfg.get("tipo")
+        if alvo in {_normal(t) for t in termos}:
+            return nome, [texto], cfg.get("tipo")
+    return None, [texto], None
+
+
 def pasta_saida() -> Path:
     p = Path(os.environ.get("PROSPECTOR_SAIDA", pasta_dados() / "saida"))
     p.mkdir(parents=True, exist_ok=True)

@@ -54,6 +54,16 @@ quantas) → **Leads** (tabela com oportunidade, nota, contato, ranking e canais
 que não gastam crédito) → **Análises** (por onde começar, quem subiu e caiu no Maps,
 por que o topo ganha, o mercado da busca) → **CSV / Excel / PDF**.
 
+- **Nicho completo:** escolha um nome do grupo "Nicho completo" no menu (ex.: `odontologia`)
+  e o Radar combina as variações de nome do `nichos.json` até chegar à quantidade pedida.
+  Um termo avulso (`pizzaria`) busca só ele. O Google entrega até 60 empresas por termo.
+- **Custo:** a busca para de pedir páginas assim que junta a quantidade; a tela de leads
+  mostra quantas chamadas ao Google foram feitas.
+- **Andamento:** cada lead tem Não abordado → Contatado → Respondeu → Reunião → Proposta →
+  Ganho / Perdido / Descartado, com filtro na tela da busca e em "Todos os leads".
+- **Buscas salvas:** reabrem depois de fechar o programa (ficam no banco).
+- **Por que essa nota?** Cada lead mostra os pontos que somaram, com a evidência.
+
 ### Linha de comando
 
 ```bash
@@ -84,7 +94,12 @@ ou sem nenhum canal público é descartada.
   argumento de proposta. Instabilidade intermitente não é site fora do ar.
 - **Política de privacidade** é julgada pelos links que o site DECLARA, nunca por
   caminhos adivinhados.
-- Site que bloqueia crawler por robots.txt **não** é tratado como problema.
+- Site que bloqueia crawler por robots.txt **não** é tratado como problema. O robots.txt
+  segue a RFC 9309: erro 4xx ao buscá-lo significa "sem restrição", não bloqueio.
+- **Site montado por JavaScript** (HTML servido quase vazio): redes, formulário, política
+  e banner de cookies não são verificáveis — a ausência deles não vira ponto nem frase.
+  Continua valendo o que está no HTML servido (HTTPS, celular, sitemap, tag encontrada).
+- **Site que não abriu** não gera "sem Instagram": o link poderia estar nele.
 
 ## Instagram e TikTok — seguidores
 

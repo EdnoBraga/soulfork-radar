@@ -124,16 +124,10 @@ def cmd_buscar(args) -> int:
         print("  4. Copie .env.example para .env e cole a chave lá\n")
         return 1
 
-    nichos = config.carregar_nichos(args.nichos)
     alvo = args.nicho
-    if alvo in nichos:
-        termos = nichos[alvo].get("termos") or [alvo]
-        tipo = nichos[alvo].get("tipo")
-        nome_nicho = alvo
-    else:
-        termos = [alvo]
-        tipo = None
-        nome_nicho = alvo
+    grupo, termos, tipo = config.termos_do_nicho(alvo, config.carregar_nichos(args.nichos))
+    nome_nicho = alvo
+    if grupo is None:
         print(f"(‘{alvo}’ não está em nichos.json — usando como termo de busca livre)")
 
     if args.termo:

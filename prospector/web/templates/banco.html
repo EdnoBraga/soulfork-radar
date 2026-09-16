@@ -8,21 +8,36 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--frac
  text-align:left;padding:12px 14px;border-bottom:1px solid var(--linha)}
 tr:hover td{background:#fbfbf9}
 .tabela{overflow-x:auto}
+select{padding:6px 8px;border:1px solid var(--linha);border-radius:8px;font-size:13px;
+ background:var(--card);color:var(--txt)}
+.filtros{margin-bottom:16px}
 </style>
 {% endblock %}
 {% block conteudo %}
 <h1>Todos os leads</h1>
 <div class="sub" style="margin-bottom:18px">{{ resumo.total }} empresas acumuladas em todas as
  buscas · {{ resumo.quentes }} quentes · {{ resumo.novos }} ainda não abordados</div>
+<div class="filtros">
+ <select onchange="location.search = this.value ? '?s=' + this.value : ''">
+  <option value="">Andamento: todos</option>
+  {% for v, rot in STATUS %}<option value="{{v}}" {% if andamento==v %}selected{% endif %}>{{rot}}</option>{% endfor %}
+ </select>
+</div>
 <div class="card tabela">
 <table>
- <thead><tr><th>Score</th><th>Empresa</th><th>Nicho</th><th>Cidade</th><th>Oportunidade</th>
-  <th>Contato</th></tr></thead>
+ <thead><tr><th>Score</th><th>Empresa</th><th>Andamento</th><th>Nicho</th><th>Cidade</th>
+  <th>Oportunidade</th><th>Contato</th></tr></thead>
  <tbody>
  {% for l in leads %}
+  {% set ch = chave_do_lead(l) %}
   <tr>
    <td><b>{{ l.score }}</b><br><span class="badge {{ l.faixa }}">{{ rotulo_faixa(l.faixa) }}</span></td>
    <td><b>{{ l.nome }}</b><br><span style="color:var(--fraco);font-size:12.5px">{{ l.site or 'sem site' }}</span></td>
+   <td>
+    <select data-chave="{{ ch }}" onchange="mudarStatus(this)">
+     {% for v, rot in STATUS %}<option value="{{v}}" {% if status_map[ch]==v %}selected{% endif %}>{{rot}}</option>{% endfor %}
+    </select>
+   </td>
    <td>{{ l.nicho }}</td>
    <td>{{ l.municipio }}{% if l.uf %}/{{ l.uf }}{% endif %}</td>
    <td style="max-width:300px">{{ l.frase_oportunidade }}</td>
@@ -32,8 +47,21 @@ tr:hover td{background:#fbfbf9}
     {% if l.redes.instagram %}<a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank" style="text-decoration:none">@{{ l.redes.instagram }}</a>{% endif %}
    </td>
   </tr>
+ {% else %}
+  <tr><td colspan="7" style="text-align:center;color:var(--fraco);padding:40px">Nenhum lead com esse andamento.</td></tr>
  {% endfor %}
  </tbody>
 </table>
 </div>
+<script>
+async function mudarStatus(sel){
+  sel.disabled = true;
+  const r = await fetch('/lead/status', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({chave: sel.dataset.chave, status: sel.value})
+  });
+  sel.disabled = false;
+  if (!r.ok) { alert('Não consegui salvar o andamento.'); }
+}
+</script>
 {% endblock %}
