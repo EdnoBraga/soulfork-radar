@@ -141,6 +141,13 @@ tr:hover td{background:#fbfbf9}
     <div class="canal"><span class="rot">Instagram</span>
      {% if l.redes.instagram %}<span class="val"><a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank">@{{ l.redes.instagram }}</a></span>
       <span class="acao"><a href="https://instagram.com/{{ l.redes.instagram }}" target="_blank">Analisar</a></span>
+      <span class="val" id="ig-{{ l.redes.instagram }}" style="font-size:11.5px;color:var(--fraco)">
+       {%- if l.redes.instagram_seguidores is not none -%}
+        {{ l.redes.instagram_seguidores }} seguidores{% if l.redes.instagram_ultima_publicacao %} · último post {{ l.redes.instagram_ultima_publicacao }}{% endif %}
+       {%- else -%}
+        <button class="copiar" onclick="seguidores(this,'{{ l.redes.instagram }}')">ver seguidores</button>
+       {%- endif -%}
+      </span>
      {% else %}<span class="val off">sem @ · achar @</span>{% endif %}
     </div>
     {% if l.redes.tiktok %}
@@ -163,4 +170,22 @@ tr:hover td{background:#fbfbf9}
 <div class="vazio">Nenhum lead passa nesses filtros. Afrouxe um deles.</div>
 {% endif %}
 </div>
+<script>
+async function seguidores(btn, usuario){
+  const alvo = btn.parentElement;
+  btn.disabled = true; btn.textContent = 'consultando…';
+  const r = await fetch('/rodada/{{ rid }}/instagram', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({usuario: usuario})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    alvo.textContent = d.seguidores + ' seguidores'
+      + (d.ultima_publicacao ? ' · último post ' + d.ultima_publicacao : ' · nenhum post');
+  } else {
+    alvo.textContent = d.indisponivel ? 'não disponível na API' : d.erro;
+    alvo.title = d.erro;
+  }
+}
+</script>
 {% endblock %}

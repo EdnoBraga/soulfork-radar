@@ -18,6 +18,7 @@ class Contatos:
 class Redes:
     instagram: str | None = None
     instagram_seguidores: int | None = None
+    instagram_ultima_publicacao: str | None = None   # AAAA-MM-DD, da Graph API
     tiktok: str | None = None
     tiktok_seguidores: int | None = None
     facebook: str | None = None

@@ -113,7 +113,20 @@ def _leads_da_rodada(rid: str) -> tuple[dict, list[Lead]]:
 @app.route("/configuracao", methods=["GET", "POST"])
 def configuracao():
     msg = erro = None
-    if request.method == "POST":
+    if request.method == "POST" and request.form.get("token") is not None:
+        from ..sources import instagram as ig
+        token = (request.form.get("token") or "").strip()
+        if not token:
+            erro = "Cole o token antes de salvar."
+        else:
+            try:
+                iguid, usuario = ig.descobrir_conta(token)
+                config.salvar_token_instagram(token, iguid)
+                msg = f"Token salvo e ligado à conta @{usuario}." if usuario \
+                    else "Token salvo."
+            except (ig.InstagramError, ig.IndisponivelError) as e:
+                erro = str(e)
+    elif request.method == "POST":
         chave = (request.form.get("chave") or "").strip()
         if not chave:
             erro = "Cole a chave antes de salvar."
@@ -145,6 +158,7 @@ def configuracao():
                 erro = f"Não consegui falar com o Google: {e}"
     return render_template("configuracao.html", pagina="config",
                            tem_chave=bool(config.chave_places()),
+                           tem_token=bool(config.token_instagram() and config.ig_user_id()),
                            pasta=str(config.pasta_dados()), msg=msg, erro=erro)
 
 
@@ -263,6 +277,35 @@ def leads(rid):
         filtro=filtro, presenca=presenca, contato=contato, ordem=ordem,
         n_novos=sum(1 for l in ls if chave_do_lead(l) in novos),
     )
+
+
+@app.post("/rodada/<rid>/instagram")
+def instagram(rid):
+    """Seguidores de UM lead, sob demanda. Nunca roda na varredura:
+    a Meta libera ~200 chamadas por hora."""
+    from ..sources import instagram as ig
+
+    token, iguid = config.token_instagram(), config.ig_user_id()
+    if not (token and iguid):
+        return jsonify(ok=False, erro="Configure o token da Meta primeiro."), 400
+    usuario = ((request.get_json(silent=True) or {}).get("usuario") or "").strip()
+    try:
+        dados = ig.consultar(usuario, token, iguid)
+    except ig.IndisponivelError as e:
+        return jsonify(ok=False, indisponivel=True, erro=str(e)), 200
+    except ig.InstagramError as e:
+        return jsonify(ok=False, erro=str(e)), 200
+
+    r = RODADAS.get(rid)
+    banco = Banco(config.caminho_banco())
+    for d in (r or {}).get("leads", []):
+        if ((d.get("redes") or {}).get("instagram") or "").lower() != usuario.lower():
+            continue
+        d["redes"]["instagram_seguidores"] = dados["seguidores"]
+        d["redes"]["instagram_ultima_publicacao"] = dados["ultima_publicacao"]
+        banco.salvar(_dict_para_lead(d))
+    banco.fechar()
+    return jsonify(ok=True, **dados)
 
 
 @app.get("/rodada/<rid>/analises")
