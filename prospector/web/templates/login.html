@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set sem_menu = True %}
+{% block titulo %}Entrar · SoulFork Find{% endblock %}
+{% block css %}
+<style>
+.entrar{max-width:380px;margin:12vh auto 0;padding:30px 28px}
+.entrar h1{font-size:22px;margin-bottom:6px}
+.entrar label{display:block;font-size:12px;font-weight:600;color:var(--fraco);margin:20px 0 6px;
+ text-transform:uppercase;letter-spacing:.05em}
+.entrar input{width:100%;padding:11px 13px;border:1.5px solid var(--linha);border-radius:10px;
+ font-size:15px;background:var(--card);color:var(--txt)}
+.entrar input:focus{outline:none;border-color:#134e2f}
+.entrar .botao{width:100%;margin-top:16px;justify-content:center}
+.entrar .erro{margin-top:14px;color:var(--quente);font-size:13.5px}
+</style>
+{% endblock %}
+{% block conteudo %}
+<form class="card entrar" method="post" action="/entrar">
+ <h1>Entrar</h1>
+ <div class="sub">Acesso restrito à equipe SoulFork.</div>
+ <label for="senha">Senha</label>
+ <input id="senha" name="senha" type="password" autocomplete="current-password" required autofocus>
+ <input type="hidden" name="proximo" value="{{ proximo }}">
+ <button class="botao" type="submit">Entrar</button>
+ {% if erro %}<div class="erro" role="alert">{{ erro }}</div>{% endif %}
+</form>
+{% endblock %}

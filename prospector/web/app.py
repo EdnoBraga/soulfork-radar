@@ -1,16 +1,19 @@
-"""Interface web do SoulFork Radar — roda local: python -m prospector.web"""
+"""Interface web do SoulFork Find. Local: python -m prospector.web · servidor: wsgi.py"""
 from __future__ import annotations
 
-import io
+import hmac
 import json
+import os
+import secrets
 import tempfile
 import threading
+import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from flask import (Flask, Response, abort, jsonify, redirect, render_template,
-                   request, send_file, url_for)
+from flask import (Flask, abort, jsonify, redirect, render_template, request,
+                   send_file, session, url_for)
 
 from .. import config, export
 from ..analise import comparar_posicoes, resumir
@@ -22,6 +25,53 @@ from ..sugestoes import CIDADES, SUGESTOES, UFS
 
 app = Flask(__name__)
 config.carregar_env()
+# sem FIND_SECRET_KEY (só no uso local) a sessão vale até o processo reiniciar
+app.secret_key = os.environ.get("FIND_SECRET_KEY") or secrets.token_hex(32)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  PERMANENT_SESSION_LIFETIME=timedelta(days=7))
+
+# Senha única de administrador. Sem FIND_SENHA o app fica aberto — só serve
+# para rodar na própria máquina; o wsgi.py de produção se recusa a subir assim.
+ROTAS_PUBLICAS = {"login", "saude", "static"}
+
+
+@app.before_request
+def exigir_login():
+    senha = os.environ.get("FIND_SENHA", "")
+    if not senha or request.endpoint in ROTAS_PUBLICAS or session.get("logado"):
+        return None
+    if request.path.startswith(("/lead/", "/rodada/")) and request.method == "POST":
+        return jsonify(ok=False, erro="sessão expirada, entre de novo"), 401
+    return redirect(url_for("login", proximo=request.full_path.rstrip("?")))
+
+
+@app.route("/entrar", methods=["GET", "POST"], endpoint="login")
+def entrar():
+    erro = None
+    proximo = request.values.get("proximo") or "/"
+    if not proximo.startswith("/") or proximo.startswith("//"):
+        proximo = "/"   # nada de redirecionar para fora do site
+    if request.method == "POST":
+        digitada = (request.form.get("senha") or "").encode()
+        if hmac.compare_digest(digitada, os.environ.get("FIND_SENHA", "").encode()):
+            session.clear()
+            session["logado"] = True
+            session.permanent = True
+            return redirect(proximo)
+        time.sleep(1)   # ponytail: freio simples contra força bruta; limite por IP se virar alvo
+        erro = "Senha incorreta."
+    return render_template("login.html", erro=erro, proximo=proximo)
+
+
+@app.get("/sair")
+def sair():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.get("/saude")
+def saude():
+    return "ok"
 
 # rodadas em andamento nesta sessão; as concluídas também ficam no banco
 RODADAS: dict[str, dict] = {}
@@ -60,8 +110,7 @@ def _executar_busca(rid: str, nicho: str, local: str, quantidade: int) -> None:
         chave = config.chave_places()
         if not chave:
             raise RuntimeError(
-                "Falta a chave da Google Places API. Copie .env.example para .env, "
-                "cole a chave e reinicie o servidor."
+                "Falta a chave da Google Places API — cadastre em Configuração."
             )
         grupo, termos, tipo = config.termos_do_nicho(nicho)
         if len(termos) > 1:
@@ -363,7 +412,7 @@ def analises(rid):
 def exportar(rid, formato):
     r, ls = _leads_da_rodada(rid)
     base = f"leads-{r['nicho']}-{r['local']}".replace(",", "").replace(" ", "-").lower()
-    tmp = Path(tempfile.gettempdir()) / f"radar-{rid}"
+    tmp = Path(tempfile.gettempdir()) / f"find-{rid}"
     tmp.mkdir(exist_ok=True)
     if formato == "csv":
         p = export.para_csv(ls, tmp / f"{base}.csv")
@@ -401,7 +450,7 @@ def banco_view():
 def main():
     import webbrowser
     porta = 8760
-    print(f"\n  SoulFork Radar → http://localhost:{porta}\n")
+    print(f"\n  SoulFork Find → http://localhost:{porta}\n")
     try:
         threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{porta}")).start()
     except Exception:

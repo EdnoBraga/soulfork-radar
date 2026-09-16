@@ -36,7 +36,7 @@ def gerar_pdf(leads: list[Lead], d: dict, rodada: dict, destino: str | Path) -> 
                             leftMargin=18*mm, rightMargin=18*mm,
                             topMargin=16*mm, bottomMargin=16*mm)
     fl = []
-    fl.append(Paragraph("SoulFork Radar — resumo da busca", st_t))
+    fl.append(Paragraph("SoulFork Find — resumo da busca", st_t))
     fl.append(Paragraph(
         f"“{rodada['nicho']}” em {rodada['local']} · {rodada.get('terminou_em','')[:16].replace('T',' ')}",
         st_sub))
@@ -98,7 +98,7 @@ def gerar_pdf(leads: list[Lead], d: dict, rodada: dict, destino: str | Path) -> 
         "Checagens feitas no HTML público de cada site. Antes de citar um achado numa "
         "proposta, reconfirme em outra janela de tempo — instabilidade intermitente não é "
         "site fora do ar. GA4 nunca é afirmado como ausente (não é verificável por esse "
-        "caminho). Gerado pelo SoulFork Radar.", st_nota))
+        "caminho). Gerado pelo SoulFork Find.", st_nota))
 
     doc.build(fl)
     return destino

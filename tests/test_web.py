@@ -58,7 +58,7 @@ def check(cond, msg):
     if not cond: falhas.append(msg)
 
 r = c.get("/");                              check(r.status_code == 200, f"/ -> {r.status_code}")
-check("Seus clientes" in r.text, "home sem hero")
+check("Diagnóstico antes" in r.text and "Radar" not in r.text, "home sem hero novo / com marca antiga")
 check("Dentistas" in r.text, "home sem placeholder de sugestões")
 
 r = c.get("/rodada/teste123abc/leads");      check(r.status_code == 200, f"leads -> {r.status_code}")
@@ -120,6 +120,26 @@ check(config.termos_do_nicho("Dentistas", nichos) == ("odontologia", ["Dentistas
       "termo do nicho não virou busca única com tipo")
 check(config.termos_do_nicho("pizzaria", nichos)[1] == ["pizzaria"], "pizzaria puxou hamburgueria")
 check(config.termos_do_nicho("tatuagem", nichos) == (None, ["tatuagem"], None), "termo livre errado")
+
+# login: com FIND_SENHA definida, nada abre sem entrar
+os.environ["FIND_SENHA"] = "senha-de-teste-123"
+anon = app.test_client()
+r = anon.get("/banco")
+check(r.status_code == 302 and "/entrar" in r.headers["Location"], "banco abriu sem login")
+check(anon.get("/configuracao").status_code == 302, "configuração abriu sem login")
+check(anon.get("/rodada/teste123abc/exportar/csv").status_code == 302, "exportação abriu sem login")
+r = anon.post("/lead/status", json={"chave": chave_clinica, "status": "ganho"})
+check(r.status_code == 401, f"POST sem login não deu 401: {r.status_code}")
+check(anon.get("/saude").text == "ok", "rota de saúde exige login")
+r = anon.post("/entrar", data={"senha": "errada", "proximo": "/banco"})
+check(r.status_code == 200 and "Senha incorreta" in r.text, "senha errada não foi recusada")
+r = anon.post("/entrar", data={"senha": "senha-de-teste-123", "proximo": "//evil.com"})
+check(r.status_code == 302 and r.headers["Location"] == "/", "redirecionou para fora do site")
+check(anon.get("/banco").status_code == 200, "login certo não abriu o banco")
+check("Sair" in anon.get("/banco").text, "link de sair ausente")
+anon.get("/sair")
+check(anon.get("/banco").status_code == 302, "sair não encerrou a sessão")
+del os.environ["FIND_SENHA"]
 
 # frases de oportunidade coerentes
 por_nome = {l.nome: l for l in leads}

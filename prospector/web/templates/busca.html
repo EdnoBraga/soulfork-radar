@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set pagina = 'busca' %}
-{% block titulo %}SoulFork Radar — Buscar{% endblock %}
+{% block titulo %}SoulFork Find — Buscar{% endblock %}
 {% block css %}
 <style>
 .hero{background:var(--escuro);border-radius:16px;color:#e8ecf4;display:grid;
@@ -47,9 +47,10 @@ input:focus,select:focus{outline:none;border-color:#134e2f}
 {% block conteudo %}
 <div class="hero">
  <div class="txt">
-  <h1>Seus clientes já<br>estão <em>no mapa.</em></h1>
-  <p>O radar varre o Google Maps, encontra quem precisa de você, analisa o site, o Instagram
-   e o WhatsApp de cada empresa — e já entrega o motivo da primeira conversa.</p>
+  <h1>Diagnóstico antes<br>do <em>primeiro oi.</em></h1>
+  <p>O Find busca empresas no Google Maps, abre o site de cada uma e mostra, com a prova, o que
+   está quebrado — HTTPS, celular, Pixel, LGPD, canais de contato. Você chega na conversa
+   sabendo o que oferecer.</p>
  </div>
  <div class="radar">
   <svg viewBox="0 0 380 320">
@@ -57,13 +58,6 @@ input:focus,select:focus{outline:none;border-color:#134e2f}
     <circle cx="228" cy="144" r="40"/><circle cx="228" cy="144" r="80"/>
     <circle cx="228" cy="144" r="120"/><circle cx="228" cy="144" r="160"/>
    </g>
-   <path d="M228 144 L228 -16 A160 160 0 0 1 341 31 Z" fill="url(#fx)">
-    <animateTransform attributeName="transform" type="rotate" from="0 228 144" to="360 228 144"
-     dur="6s" repeatCount="indefinite"/>
-   </path>
-   <defs><linearGradient id="fx" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0%" stop-color="#c7f464" stop-opacity=".5"/>
-    <stop offset="100%" stop-color="#c7f464" stop-opacity="0"/></linearGradient></defs>
    <circle cx="180" cy="100" r="4" fill="#c7f464"/>
    <circle cx="280" cy="200" r="4" fill="#c7f464" opacity=".7"/>
    <circle cx="300" cy="90" r="4" fill="#c7f464" opacity=".5"/>
@@ -113,7 +107,7 @@ input:focus,select:focus{outline:none;border-color:#134e2f}
   </div>
   <div class="dica">O Google entrega até 60 empresas por termo. Para chegar a 120, escolha um
    <b>nicho completo</b> no menu: ele combina as variações de nome do mercado. Cada página de 20
-   resultados é uma chamada cobrada pelo Google — o Radar para de buscar assim que junta a
+   resultados é uma chamada cobrada pelo Google — o Find para de buscar assim que junta a
    quantidade pedida.</div>
  </form>
 </div>

@@ -1,30 +1,40 @@
-# SoulFork Radar
+# SoulFork Find
 
-Prospecção de clientes por nicho e localização. O radar varre o Google Maps, encontra
-as empresas da região, visita o site de cada uma, extrai **WhatsApp, e-mail, telefone,
-Instagram, TikTok, Facebook e LinkedIn**, valida o **CNPJ** na base pública da Receita,
-faz o **diagnóstico técnico** do site (HTTPS, celular, Pixel, GTM, LGPD, formulário) e
-entrega um **score de oportunidade 0–100** com o motivo da primeira conversa já escrito.
+**https://find.soulfork.com.br** — prospecção de clientes por nicho e localização. O Find
+busca empresas no Google Maps, visita o site de cada uma, extrai **WhatsApp, e-mail,
+telefone, Instagram, TikTok, Facebook e LinkedIn**, valida o **CNPJ** na base pública da
+Receita, faz o **diagnóstico técnico** do site (HTTPS, celular, Pixel, GTM, LGPD,
+formulário) e entrega um **score de oportunidade 0–100** com o motivo da primeira conversa.
 
-## Instalador do Windows (jeito mais fácil)
+É um site, não um programa instalável.
 
-Baixe o `SoulForkRadar-x.x.x-instalador.exe`, dê dois cliques e siga o assistente.
-Na primeira vez o Windows pode mostrar **"O Windows protegeu o computador"** — isso é o
-aviso padrão para programas novos, ainda sem reputação acumulada. Clique em
-**Mais informações → Executar assim mesmo** e a instalação segue normal.
+## Publicação (VPS com Easypanel)
 
-Depois de instalado, abra o Radar pelo atalho, vá em **Configuração** e cole sua chave da
-Google Places API (o passo a passo de 5 minutos está na própria tela). Seus dados ficam em
-`%APPDATA%\SoulForkRadar` — desinstalar o programa não apaga seus leads.
+1. **Easypanel → projeto → + Service → App**, fonte **GitHub** (`EdnoBraga/soulfork-radar`,
+   branch `main`), build **Dockerfile**.
+2. **Environment:** `FIND_SENHA`, `FIND_SECRET_KEY` (ambas com 12+ caracteres; a chave
+   pode ser `python -c "import secrets; print(secrets.token_hex(32))"`) e
+   `GOOGLE_PLACES_API_KEY`. Sem as duas primeiras o app **não sobe** — de propósito.
+3. **Mounts:** volume em `/data` (banco de leads, exportações, token da Meta).
+   Sem volume, cada novo deploy apaga os leads.
+4. **Domains:** `find.soulfork.com.br`, porta **8000**, HTTPS ligado.
+5. **DNS** (onde o domínio soulfork.com.br é administrado): registro **A** `find` →
+   IP da VPS. O certificado sai sozinho quando o DNS propagar.
+6. Confira: `https://find.soulfork.com.br/saude` responde `ok`, e a home pede senha.
 
-## Instalação a partir do código (alternativa)
+O contêiner roda **1 processo** com 8 threads: as buscas em andamento vivem na memória
+dele. Não aumente o número de réplicas sem antes mover a fila para o banco.
 
-Precisa de Python 3.10+ (python.org/downloads — no Windows, marque "Add to PATH").
+## Rodar na própria máquina (desenvolvimento)
+
+Precisa de Python 3.10+.
 
 ```bash
-cd soulfork-radar
 pip install -r requirements.txt
+python -m prospector.web
 ```
+
+Sem `FIND_SENHA` o app abre sem login — só serve para uso local.
 
 ### Chave do Google Places (obrigatória para buscar)
 
@@ -34,8 +44,8 @@ pip install -r requirements.txt
    custa centavos de dólar)
 4. **Credenciais** → **Criar credenciais** → **Chave de API**
 5. Em restrições da chave, restrinja à *Places API (New)*. **Não** use restrição por
-   referer HTTP (a ferramenta chama do seu computador, não do navegador)
-6. Copie `.env.example` para `.env` e cole a chave:
+   referer HTTP (a chamada sai do servidor, não do navegador)
+6. No servidor, cadastre como variável de ambiente (ou pela tela Configuração). Local: copie `.env.example` para `.env`:
 
 ```
 GOOGLE_PLACES_API_KEY=AIza...
@@ -55,13 +65,13 @@ que não gastam crédito) → **Análises** (por onde começar, quem subiu e cai
 por que o topo ganha, o mercado da busca) → **CSV / Excel / PDF**.
 
 - **Nicho completo:** escolha um nome do grupo "Nicho completo" no menu (ex.: `odontologia`)
-  e o Radar combina as variações de nome do `nichos.json` até chegar à quantidade pedida.
+  e o Find combina as variações de nome do `nichos.json` até chegar à quantidade pedida.
   Um termo avulso (`pizzaria`) busca só ele. O Google entrega até 60 empresas por termo.
 - **Custo:** a busca para de pedir páginas assim que junta a quantidade; a tela de leads
   mostra quantas chamadas ao Google foram feitas.
 - **Andamento:** cada lead tem Não abordado → Contatado → Respondeu → Reunião → Proposta →
   Ganho / Perdido / Descartado, com filtro na tela da busca e em "Todos os leads".
-- **Buscas salvas:** reabrem depois de fechar o programa (ficam no banco).
+- **Buscas salvas:** reabrem depois de reiniciar o servidor (ficam no banco).
 - **Por que essa nota?** Cada lead mostra os pontos que somaram, com a evidência.
 
 ### Linha de comando
@@ -120,7 +130,7 @@ libera cerca de **200 consultas por hora**; por isso a consulta é manual.
 
 ## Arquivos
 
-- `saida/leads.db` — banco local com tudo que já foi coletado (deduplica entre rodadas
+- `<FIND_DADOS>/saida/leads.db` (no servidor, `/data/saida/leads.db`) — banco com tudo que já foi coletado (deduplica entre rodadas
   e alimenta o "quem subiu e quem caiu")
 - `saida/*.csv|xlsx|html` — exportações da linha de comando
 - `nichos.json` — nichos prontos, edite à vontade
