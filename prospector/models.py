@@ -102,6 +102,9 @@ class Lead:
     posicao_maps: int | None = None
     frase_oportunidade: str = ""
     # meta
+    # de onde o lead veio: 'places' (Google Maps) ou 'receita' (registro da
+    # Receita). O segundo existe porque quem nao tem site nao aparece no Places.
+    origem: str = "places"
     nicho: str | None = None
     busca: str | None = None
     coletado_em: str | None = None

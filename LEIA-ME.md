@@ -68,6 +68,26 @@ Sem `FIND_SENHA` o app abre sem login — só serve para uso local.
 GOOGLE_PLACES_API_KEY=AIza...
 ```
 
+## A busca junta as duas fontes
+
+Quando você busca um nicho numa cidade, o Find pergunta ao Google Places **e** ao
+registro da Receita, e devolve tudo numa lista só. Quem tem site vem com diagnóstico
+técnico e score; quem não tem vem do registro, com nome do dono e telefone do
+cadastro — marcado com origem `receita`.
+
+Isso existe porque o Places só conhece quem está no Maps, e o CNPJ só é lido do
+rodapé do site. Quem abriu o CNPJ mês passado e ainda não tem nem site nem ficha no
+Google sumia da busca, sendo justamente quem precisa comprar um site.
+
+O nicho é traduzido para CNAE em `CNAES_POR_NICHO` (`prospector/sources/receita_leads.py`),
+com os códigos conferidos contra a tabela `Cnaes` da própria Receita. **Dermatologia,
+oftalmologia e educação ficam de fora de propósito:** a CNAE não separa especialidade
+médica, e apontar para o código genérico devolveria todo médico da cidade. Nesses
+nichos a busca segue só com o Places, e o log diz isso.
+
+Se o registro estiver fora do ar ou sem configuração, a busca do Places acontece
+normalmente e o log registra o que faltou.
+
 ## A aba Receita
 
 O Find acha empresa pelo Google Places e pega o CNPJ **no rodapé do site**. Quem não tem

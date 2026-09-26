@@ -160,6 +160,24 @@ def _executar_busca(rid: str, nicho: str, local: str, quantidade: int) -> None:
             stats=stats,
         )[:quantidade]
 
+        # O Places só conhece quem está no Maps, e o CNPJ só aparece quando há site
+        # com rodapé. Quem abriu o CNPJ mês passado e ainda não tem nem um nem outro
+        # some da busca — e é exatamente quem precisa comprar um site. O registro da
+        # Receita completa a lista com esses, sem repetir quem o Places já trouxe.
+        vistos = {"".join(filter(str.isdigit, l.cnpj or "")) for l in leads if l.cnpj}
+        try:
+            do_registro = receita_leads.complementar(
+                nicho, local, limite=quantidade, cnpjs_ignorados=vistos)
+            if do_registro:
+                log(f"registro da Receita: +{len(do_registro)} sem site que o Maps não mostra")
+                leads += [receita_leads.para_lead(d, nicho, f"{nicho}|{local}")
+                          for d in do_registro]
+                leads.sort(key=lambda l: -l.score)
+            elif receita_leads.configurado() and not receita_leads.cnaes_do_nicho(nicho):
+                log(f"registro da Receita: '{nicho}' não tem CNAE próprio, só Places")
+        except Exception as e:      # a busca do Places já valeu: não perder por isso
+            log(f"registro da Receita indisponível ({e})")
+
         banco = Banco(config.caminho_banco())
         busca_id = f"{nicho}|{local}".lower()
         novos = set()
