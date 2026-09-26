@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block titulo %}Receita · SoulFork Find{% endblock %}
+{% block css %}
+<style>
+.filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:18px 0 8px}
+.filtros label{display:block;font-size:11.5px;font-weight:600;color:var(--fraco);
+ text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.filtros select,.filtros input[type=date]{padding:9px 11px;border:1.5px solid var(--linha);
+ border-radius:9px;background:var(--card);color:var(--txt);font-size:14px;min-width:160px}
+.filtros .caixa{display:flex;align-items:center;gap:7px;font-size:13.5px;padding-bottom:9px}
+.tab{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:14px}
+.tab th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+ color:var(--fraco);padding:8px 10px;border-bottom:1.5px solid var(--linha);white-space:nowrap}
+.tab td{padding:9px 10px;border-bottom:1px solid var(--linha);vertical-align:top}
+.tab tr:hover td{background:rgba(19,78,47,.04)}
+.pastilha{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600}
+.cel{background:#e6f4ea;color:#12643a}
+.fix{background:#f1efe9;color:#7a7568}
+.nota{display:inline-block;min-width:30px;text-align:center;font-weight:700;font-size:12.5px;
+ padding:3px 7px;border-radius:7px;background:#134e2f;color:#fff}
+.nota.media{background:#8a6d1f}.nota.baixa{background:#9a9689}
+.wa{color:#12643a;font-weight:600;text-decoration:none;white-space:nowrap}
+.wa:hover{text-decoration:underline}
+.vazio{padding:40px 0;text-align:center;color:var(--fraco)}
+.paginas{display:flex;gap:8px;align-items:center;margin-top:18px;font-size:13.5px}
+.aviso{padding:14px 16px;border:1.5px solid var(--linha);border-radius:10px;background:var(--card);
+ margin-top:16px;font-size:13.5px;line-height:1.55}
+.aviso code{background:rgba(0,0,0,.05);padding:1px 5px;border-radius:5px;font-size:12.5px}
+</style>
+{% endblock %}
+{% block conteudo %}
+<h1>Base da Receita</h1>
+<div class="sub">Empresas abertas recentemente, com o nome de quem decide. Cobre quem não
+ tem site — que o Buscar não enxerga, porque depende do CNPJ no rodapé.</div>
+
+{% if nao_configurado %}
+<div class="aviso">
+ <strong>Falta configurar.</strong> Esta tela lê a tabela <code>receita_leads</code> no
+ Supabase, e a leitura é feita pelo servidor com a chave de serviço — a chave publicável
+ não serve, porque fica exposta na tela de login e aqui há nome de pessoa.<br><br>
+ No Easypanel, adicione <code>SUPABASE_SERVICE_KEY</code> (Supabase → Project Settings →
+ API → <em>service_role</em>). <code>SUPABASE_URL</code> você já tem, do login.
+</div>
+{% else %}
+
+{% if erro %}<div class="aviso"><strong>Não consegui ler a base agora.</strong> {{ erro }}</div>{% endif %}
+
+<form class="filtros" method="get" action="/receita">
+ <div>
+  <label for="cidade">Cidade</label>
+  <select id="cidade" name="cidade">
+   <option value="">todas</option>
+   {% for c in cidades %}<option value="{{c}}" {% if filtros.cidade==c %}selected{% endif %}>{{c}}</option>{% endfor %}
+  </select>
+ </div>
+ <div>
+  <label for="segmento">Segmento</label>
+  <select id="segmento" name="segmento">
+   <option value="">todos</option>
+   {% for cod, rot in SEGMENTOS.items() %}
+   <option value="{{cod}}" {% if filtros.segmento==cod %}selected{% endif %}>{{rot}}</option>{% endfor %}
+  </select>
+ </div>
+ <div>
+  <label for="aberta_apos">Aberta a partir de</label>
+  <input id="aberta_apos" type="date" name="aberta_apos" value="{{ filtros.aberta_apos }}">
+ </div>
+ <label class="caixa"><input type="checkbox" name="so_celular" value="1"
+  {% if filtros.so_celular %}checked{% endif %}> só celular</label>
+ <label class="caixa"><input type="checkbox" name="so_com_nome" value="1"
+  {% if filtros.so_com_nome %}checked{% endif %}> só com nome do dono</label>
+ <button class="botao" type="submit">Filtrar</button>
+</form>
+
+<div class="sub" style="margin-top:6px">
+ {{ total }} empresa{{ '' if total == 1 else 's' }} no filtro.
+ {% if total > por_pagina %}Mostrando {{ linhas|length }}, da melhor chance para a pior.{% endif %}
+</div>
+
+{% if linhas %}
+<table class="tab">
+ <thead><tr>
+  <th title="Chance de a ligação cair no dono, não na recepção">Chance</th>
+  <th>Empresa</th><th>Quem decide</th><th>Telefone</th><th>Cidade</th>
+  <th>Abertura</th><th>Segmento</th><th></th>
+ </tr></thead>
+ <tbody>
+ {% for l in linhas %}
+  <tr>
+   <td><span class="nota {% if l.chance_dono >= 65 %}{% elif l.chance_dono >= 35 %}media{% else %}baixa{% endif %}">{{ l.chance_dono }}</span></td>
+   <td>{{ l.empresa or '—' }}</td>
+   <td>{% if l.decisor %}{{ l.decisor }}<br><span class="sub" style="font-size:12px">{{ l.decisor_papel or '' }}</span>{% else %}<span class="sub">não identificado</span>{% endif %}</td>
+   <td>{{ l.telefone or '—' }}
+    {% if l.tipo_telefone %}<br><span class="pastilha {{ 'cel' if l.tipo_telefone=='celular' else 'fix' }}">{{ l.tipo_telefone }}</span>{% endif %}</td>
+   <td>{{ l.municipio }}/{{ l.uf }}</td>
+   <td>{{ l.abertura or '—' }}</td>
+   <td>{{ SEGMENTOS.get(l.cnae, l.cnae) }}</td>
+   <td>{% set wa = link_whatsapp(l.telefone, l.decisor) %}
+    {% if wa %}<a class="wa" href="{{ wa }}" target="_blank" rel="noopener">WhatsApp →</a>{% endif %}</td>
+  </tr>
+ {% endfor %}
+ </tbody>
+</table>
+
+{% set ult = (total - 1) // por_pagina if total else 0 %}
+{% if ult > 0 %}
+ {% set base = '/receita?cidade=' ~ filtros.cidade ~ '&segmento=' ~ filtros.segmento ~
+    '&aberta_apos=' ~ filtros.aberta_apos ~
+    ('&so_celular=1' if filtros.so_celular else '') ~
+    ('&so_com_nome=1' if filtros.so_com_nome else '') %}
+ <div class="paginas">
+  {% if pagina_atual > 0 %}<a class="botao claro mini" href="{{ base }}&p={{ pagina_atual - 1 }}">← anterior</a>{% endif %}
+  <span class="sub">página {{ pagina_atual + 1 }} de {{ ult + 1 }}</span>
+  {% if pagina_atual < ult %}<a class="botao claro mini" href="{{ base }}&p={{ pagina_atual + 1 }}">próxima →</a>{% endif %}
+ </div>
+{% endif %}
+
+{% else %}
+<div class="vazio">Nenhuma empresa com esses filtros.</div>
+{% endif %}
+{% endif %}
+{% endblock %}

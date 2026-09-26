@@ -68,6 +68,26 @@ Sem `FIND_SENHA` o app abre sem login — só serve para uso local.
 GOOGLE_PLACES_API_KEY=AIza...
 ```
 
+## A aba Receita
+
+O Find acha empresa pelo Google Places e pega o CNPJ **no rodapé do site**. Quem não tem
+site não tem rodapé, não tem CNPJ e fica invisível — e é justamente quem mais precisa de
+um site. A aba **Receita** cobre esse buraco.
+
+Ela lê a tabela `receita_leads` no Supabase, alimentada pelo filtro da base aberta de CNPJ
+(repo `soulfork-ferramentas`, pasta `prospeccao/`). Filtra por cidade, segmento e data de
+abertura, e traz o nome de quem decide. Os 7GB do registro não ficam aqui nem na VPS: só o
+resultado sobe, uns poucos MB.
+
+A coluna **Chance** é a probabilidade de a ligação cair no dono e não na recepção. A
+Receita não tem telefone de sócio — só o do estabelecimento. Mas quem abre um MEI põe o
+próprio celular no cadastro, porque não há recepção para pôr, então celular vale muito
+mais que fixo na nota.
+
+Precisa de `SUPABASE_SERVICE_KEY` (Supabase → Project Settings → API → *service_role*).
+A chave publicável **não** serve: ela fica exposta na tela de login e a tabela tem nome de
+pessoa. A leitura acontece no servidor, depois de a pessoa já ter entrado.
+
 ## Usar
 
 ### Interface (recomendado)

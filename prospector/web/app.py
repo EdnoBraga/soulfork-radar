@@ -21,6 +21,7 @@ from ..analise import comparar_posicoes, resumir
 from ..frases import rotulo_faixa
 from ..models import Lead
 from ..pipeline import rodar
+from ..sources import receita_leads
 from ..store import STATUS, Banco, chave_do_lead
 from ..sugestoes import CIDADES, SUGESTOES, UFS
 
@@ -476,6 +477,38 @@ def banco_view():
     return render_template("banco.html", leads=ls, resumo=resumo,
                            rotulo_faixa=rotulo_faixa, chave_do_lead=chave_do_lead,
                            status_map=status_map, STATUS=STATUS, andamento=andamento)
+
+
+@app.get("/receita")
+def receita_view():
+    """Fila vinda do registro da Receita: pega quem o Places não acha por não ter site."""
+    if not receita_leads.configurado():
+        return render_template("receita.html", pagina="receita", nao_configurado=True,
+                               cidades=[], linhas=[], total=0, pagina_atual=0, por_pagina=100,
+                               SEGMENTOS=receita_leads.SEGMENTOS, filtros={}, erro=None)
+    f = {
+        "cidade": request.args.get("cidade", ""),
+        "segmento": request.args.get("segmento", ""),
+        "so_celular": request.args.get("so_celular") == "1",
+        "so_com_nome": request.args.get("so_com_nome") == "1",
+        "aberta_apos": request.args.get("aberta_apos", ""),
+    }
+    try:
+        pag = max(0, int(request.args.get("p", "0")))
+    except ValueError:
+        pag = 0
+    erro = None
+    try:
+        r = receita_leads.buscar(pagina=pag, **f)
+    except Exception as e:      # rede fora do ar não pode derrubar a tela
+        erro, r = str(e), {"linhas": [], "total": 0, "pagina": 0, "por_pagina": 100}
+    return render_template(
+        "receita.html", pagina="receita", nao_configurado=False, erro=erro,
+        cidades=receita_leads.cidades(), linhas=r["linhas"], total=r["total"],
+        pagina_atual=r["pagina"], por_pagina=r["por_pagina"],
+        SEGMENTOS=receita_leads.SEGMENTOS, filtros=f,
+        link_whatsapp=receita_leads.link_whatsapp,
+        primeiro_nome=receita_leads.primeiro_nome)
 
 
 def main():
