@@ -3,8 +3,13 @@
 **https://find.soulfork.com.br** — prospecção de clientes por nicho e localização. O Find
 busca empresas no Google Maps, visita o site de cada uma, extrai **WhatsApp, e-mail,
 telefone, Instagram, TikTok, Facebook e LinkedIn**, valida o **CNPJ** na base pública da
-Receita, faz o **diagnóstico técnico** do site (HTTPS, celular, Pixel, GTM, LGPD,
+Receita, tira dali o **nome de quem decide** (sócio administrador, ou o titular quando é
+MEI), faz o **diagnóstico técnico** do site (HTTPS, celular, Pixel, GTM, LGPD,
 formulário) e entrega um **score de oportunidade 0–100** com o motivo da primeira conversa.
+
+O nome do decisor é o que separa uma abordagem de um disparo: mensagem endereçada à
+empresa cai no atendimento, que em negócio pequeno costuma ser um robô. Ele aparece no
+relatório e na coluna **Decisor** do CSV, ao lado do CNPJ de onde veio.
 
 É um site, não um programa instalável.
 
