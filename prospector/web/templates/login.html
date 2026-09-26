@@ -12,16 +12,91 @@
 .entrar input:focus{outline:none;border-color:#134e2f}
 .entrar .botao{width:100%;margin-top:16px;justify-content:center}
 .entrar .erro{margin-top:14px;color:var(--quente);font-size:13.5px}
+.gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 14px;
+ border:1.5px solid var(--linha);border-radius:10px;background:var(--card);color:var(--txt);
+ font-size:15px;font-weight:600;cursor:pointer}
+.gbtn:hover{border-color:#134e2f}
+.gbtn[disabled]{opacity:.6;cursor:default}
+.ou{display:flex;align-items:center;gap:12px;margin:22px 0 4px;color:var(--fraco);font-size:12px;
+ text-transform:uppercase;letter-spacing:.05em}
+.ou::before,.ou::after{content:"";flex:1;height:1px;background:var(--linha)}
 </style>
 {% endblock %}
 {% block conteudo %}
-<form class="card entrar" method="post" action="/entrar">
+<div class="card entrar">
  <h1>Entrar</h1>
  <div class="sub">Acesso restrito à equipe SoulFork.</div>
- <label for="senha">Senha</label>
- <input id="senha" name="senha" type="password" autocomplete="current-password" required autofocus>
- <input type="hidden" name="proximo" value="{{ proximo }}">
- <button class="botao" type="submit">Entrar</button>
+
+ {% if google_ligado %}
+ <button class="gbtn" id="btnGoogle" type="button" style="margin-top:22px">
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.7-.4-3.9H24v7.1h12.1c-.2 1.8-1.6 4.6-4.5 6.5l-.1.3 6.5 5 .5.1c4.1-3.8 6.6-9.4 6.6-15.1"/><path fill="#34A853" d="M24 46c5.9 0 10.9-1.9 14.5-5.3l-6.9-5.4c-1.9 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9l-.3.1-6.7 5.2-.1.3C8 40.9 15.4 46 24 46"/><path fill="#FBBC05" d="M11.5 28.5c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5v-.3l-6.8-5.3-.2.1C2.9 17.1 2 20.4 2 24s.9 6.9 2.5 9.9z"/><path fill="#EB4335" d="M24 9.5c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 3.4 29.9 1 24 1 15.4 1 8 6.1 4.5 14.1l7 5.4c1.8-5.2 6.7-9 12.5-9"/></svg>
+  <span id="btnGoogleTexto">Entrar com Google</span>
+ </button>
+ <div class="erro" id="erroGoogle" role="alert" hidden></div>
+ {% if senha_ligada %}<div class="ou">ou</div>{% endif %}
+ {% endif %}
+
+ {% if senha_ligada %}
+ <form method="post" action="/entrar">
+  <label for="senha">Senha</label>
+  <input id="senha" name="senha" type="password" autocomplete="current-password" required
+         {% if not google_ligado %}autofocus{% endif %}>
+  <input type="hidden" name="proximo" value="{{ proximo }}">
+  <button class="botao" type="submit">Entrar</button>
+ </form>
+ {% endif %}
+
  {% if erro %}<div class="erro" role="alert">{{ erro }}</div>{% endif %}
-</form>
+</div>
+{% endblock %}
+
+{% block js %}
+{% if google_ligado %}
+<script type="module">
+// Mesmo caminho do dashboard: o Supabase cuida do fluxo do Google e devolve um
+// token. Quem decide se entra é o servidor, que pergunta ao Supabase de quem é
+// o token — o navegador nunca é acreditado só por dizer um e-mail.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const sb = createClient({{ supabase_url|tojson }}, {{ supabase_key|tojson }});
+const btn = document.getElementById('btnGoogle');
+const texto = document.getElementById('btnGoogleTexto');
+const erro = document.getElementById('erroGoogle');
+const proximo = {{ proximo|tojson }};
+
+const falhar = (msg) => { erro.textContent = msg; erro.hidden = false; btn.disabled = false; texto.textContent = 'Entrar com Google'; };
+
+async function trocarTokenPorSessao(token) {
+  texto.textContent = 'Entrando…';
+  btn.disabled = true;
+  const r = await fetch('/entrar/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.ok && d.ok) { location.replace(proximo || '/'); return; }
+  await sb.auth.signOut();          // não deixa sessão do Google pendurada sem acesso
+  falhar(d.erro || 'Não foi possível entrar.');
+}
+
+// Volta do Google: o supabase-js lê o hash da URL e guarda a sessão.
+const { data: { session } } = await sb.auth.getSession();
+if (session?.access_token) {
+  history.replaceState(null, '', location.pathname + location.search);  // tira o token da barra
+  await trocarTokenPorSessao(session.access_token);
+}
+
+btn.addEventListener('click', async () => {
+  erro.hidden = true;
+  btn.disabled = true;
+  texto.textContent = 'Abrindo o Google…';
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + '/entrar?proximo=' + encodeURIComponent(proximo || '/') },
+  });
+  if (error) falhar(error.message);
+});
+</script>
+{% endif %}
 {% endblock %}

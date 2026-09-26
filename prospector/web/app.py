@@ -16,6 +16,7 @@ from flask import (Flask, abort, jsonify, redirect, render_template, request,
                    send_file, session, url_for)
 
 from .. import config, export
+from . import google_auth
 from ..analise import comparar_posicoes, resumir
 from ..frases import rotulo_faixa
 from ..models import Lead
@@ -30,15 +31,20 @@ app.secret_key = os.environ.get("FIND_SECRET_KEY") or secrets.token_hex(32)
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                   PERMANENT_SESSION_LIFETIME=timedelta(days=7))
 
-# Senha única de administrador. Sem FIND_SENHA o app fica aberto — só serve
-# para rodar na própria máquina; o wsgi.py de produção se recusa a subir assim.
-ROTAS_PUBLICAS = {"login", "saude", "static"}
+# Dois jeitos de entrar: conta Google (mesmo Supabase do dashboard) e, como
+# reserva, a senha única. Sem nenhum dos dois o app fica aberto — só serve para
+# rodar na própria máquina; o wsgi.py de produção se recusa a subir assim.
+ROTAS_PUBLICAS = {"login", "login_google", "saude", "static"}
+
+
+def protegido() -> bool:
+    """Há alguma forma de login configurada? Se não, o app está aberto."""
+    return bool(os.environ.get("FIND_SENHA")) or google_auth.configurado()
 
 
 @app.before_request
 def exigir_login():
-    senha = os.environ.get("FIND_SENHA", "")
-    if not senha or request.endpoint in ROTAS_PUBLICAS or session.get("logado"):
+    if not protegido() or request.endpoint in ROTAS_PUBLICAS or session.get("logado"):
         return None
     if request.path.startswith(("/lead/", "/rodada/")) and request.method == "POST":
         return jsonify(ok=False, erro="sessão expirada, entre de novo"), 401
@@ -60,7 +66,31 @@ def entrar():
             return redirect(proximo)
         time.sleep(1)   # ponytail: freio simples contra força bruta; limite por IP se virar alvo
         erro = "Senha incorreta."
-    return render_template("login.html", erro=erro, proximo=proximo)
+    return render_template(
+        "login.html", erro=erro, proximo=proximo,
+        google_ligado=google_auth.configurado(),
+        senha_ligada=bool(os.environ.get("FIND_SENHA")),
+        # chave publicável: feita para ficar exposta no navegador, como no dashboard
+        supabase_url=os.environ.get("SUPABASE_URL", ""),
+        supabase_key=(os.environ.get("SUPABASE_ANON_KEY")
+                      or os.environ.get("SUPABASE_PUBLISHABLE_KEY") or ""),
+    )
+
+
+@app.post("/entrar/google", endpoint="login_google")
+def entrar_google():
+    """Recebe o token do supabase-js e abre a sessão se o e-mail estiver liberado."""
+    dados = request.get_json(silent=True) or {}
+    token = (dados.get("token") or request.form.get("token") or "").strip()
+    email = google_auth.email_do_token(token)
+    if not google_auth.liberado(email):
+        time.sleep(1)   # mesmo freio da senha, para não virar sonda de e-mail liberado
+        return jsonify(ok=False, erro="Esta conta Google não tem acesso ao Find."), 403
+    session.clear()
+    session["logado"] = True
+    session["email"] = email
+    session.permanent = True
+    return jsonify(ok=True)
 
 
 @app.get("/sair")

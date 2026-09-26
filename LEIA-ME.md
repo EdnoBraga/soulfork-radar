@@ -17,9 +17,21 @@ relatório e na coluna **Decisor** do CSV, ao lado do CNPJ de onde veio.
 
 1. **Easypanel → projeto → + Service → App**, fonte **GitHub** (`EdnoBraga/soulfork-radar`,
    branch `main`), build **Dockerfile**.
-2. **Environment:** `FIND_SENHA`, `FIND_SECRET_KEY` (ambas com 12+ caracteres; a chave
-   pode ser `python -c "import secrets; print(secrets.token_hex(32))"`) e
-   `GOOGLE_PLACES_API_KEY`. Sem as duas primeiras o app **não sobe** — de propósito.
+2. **Environment:** `FIND_SECRET_KEY` (12+ caracteres, pode ser
+   `python -c "import secrets; print(secrets.token_hex(32))"`), `GOOGLE_PLACES_API_KEY`
+   e **uma forma de login**:
+   - **Entrar com Google** (mesmo Supabase do dashboard): `SUPABASE_URL`,
+     `SUPABASE_ANON_KEY` e `FIND_EMAILS` com os e-mails liberados, separados por
+     vírgula. Sem `FIND_EMAILS` o app **não sobe**: login Google sem lista deixaria
+     entrar qualquer pessoa com conta Google.
+   - **Senha** (reserva ou alternativa): `FIND_SENHA`, 12+ caracteres.
+
+   As duas podem conviver — a tela mostra o botão do Google e o campo de senha. Sem
+   nenhuma delas o app **não sobe**, de propósito.
+
+   No Supabase, adicione `https://find.soulfork.com.br/entrar` em
+   **Authentication → URL Configuration → Redirect URLs**, senão o Google volta para
+   o lugar errado.
 3. **Mounts:** volume em `/data` (banco de leads, exportações, token da Meta).
    Sem volume, cada novo deploy apaga os leads.
 4. **Domains:** `find.soulfork.com.br`, porta **8000**, HTTPS ligado.
