@@ -85,6 +85,9 @@ class Lead:
     redes: Redes = field(default_factory=Redes)
     # cadastro
     cnpj: str | None = None
+    # quem assina: sócio administrador, ou o titular quando é MEI
+    decisor: str | None = None
+    decisor_papel: str | None = None
     razao_social: str | None = None
     situacao_cadastral: str | None = None
     cnae: str | None = None

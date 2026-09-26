@@ -84,6 +84,8 @@ def enriquecer(
     if consultar_cnpj and lead.cnpj:
         dados = fonte_cnpj.consultar(lead.cnpj, sessao=sessao_cnpj)
         if dados:
+            lead.decisor = dados.get("decisor")
+            lead.decisor_papel = dados.get("decisor_papel")
             lead.razao_social = dados["razao_social"]
             lead.situacao_cadastral = dados["situacao_cadastral"]
             lead.cnae = dados["cnae"]

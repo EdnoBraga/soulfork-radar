@@ -47,6 +47,36 @@ def extrair_do_texto(texto: str) -> str | None:
     return None
 
 
+# Quem assina contrato. Sócio sem poder de administração não decide compra, então
+# o administrador ganha do sócio comum quando os dois aparecem no quadro.
+_RE_ADMIN = re.compile(r"administrador|titular|presidente|diretor", re.IGNORECASE)
+# MEI e empresário individual não têm quadro societário: a Receita põe o nome da
+# pessoa na própria razão social, seguido do CPF. "MARIA SOUZA 12345678901"
+_RE_NOME_NA_RAZAO = re.compile(r"^(.+?)\s+\d{11}$")
+
+
+def escolher_decisor(qsa: list | None, razao_social: str | None) -> dict | None:
+    """Devolve {'nome', 'papel'} de quem decide, ou None quando não dá para saber."""
+    for so in qsa or []:
+        if not isinstance(so, dict):
+            continue
+        nome = (so.get("nome_socio") or so.get("nome") or "").strip()
+        if not nome:
+            continue
+        papel = (so.get("qualificacao_socio") or "").strip()
+        if _RE_ADMIN.search(papel):
+            return {"nome": nome, "papel": papel or "Administrador"}
+    for so in qsa or []:  # nenhum administrador marcado: fica o primeiro sócio
+        if isinstance(so, dict):
+            nome = (so.get("nome_socio") or so.get("nome") or "").strip()
+            if nome:
+                return {"nome": nome, "papel": (so.get("qualificacao_socio") or "Sócio").strip()}
+    m = _RE_NOME_NA_RAZAO.match((razao_social or "").strip())
+    if m and len(m.group(1).strip()) >= 5:
+        return {"nome": m.group(1).strip(), "papel": "Titular (MEI/EI)"}
+    return None
+
+
 def formatar(cnpj: str) -> str:
     n = _digitos(cnpj)
     if len(n) != 14:
@@ -80,8 +110,14 @@ def consultar(cnpj: str, timeout: int = 15, sessao: requests.Session | None = No
     if ddd:
         telefone = re.sub(r"\D", "", ddd)
 
+    # O quadro societário já vem nesta mesma resposta e era descartado. É o nome que
+    # faz a abordagem chegar em quem decide em vez de morrer no atendimento.
+    decisor = escolher_decisor(d.get("qsa"), d.get("razao_social"))
+
     return {
         "cnpj": formatar(n),
+        "decisor": decisor["nome"] if decisor else None,
+        "decisor_papel": decisor["papel"] if decisor else None,
         "razao_social": d.get("razao_social"),
         "nome_fantasia": d.get("nome_fantasia"),
         "situacao_cadastral": d.get("descricao_situacao_cadastral"),

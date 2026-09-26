@@ -140,6 +140,7 @@ def _campos(lead: Lead) -> str:
         ("E-mails", _e(", ".join(lead.contatos.emails))),
         ("Nota Google", f"{lead.nota} ({lead.avaliacoes} avaliações)" if lead.nota else "—"),
         ("CNPJ", _e(lead.cnpj) or "não localizado"),
+        ("Decisor", (f"{_e(lead.decisor)} ({_e(lead.decisor_papel)})" if lead.decisor_papel else _e(lead.decisor)) or "não identificado"),
         ("Razão social", _e(lead.razao_social) or "—"),
         ("Situação cadastral", _e(lead.situacao_cadastral) or "—"),
         ("CNAE", _e(lead.cnae) or "—"),
