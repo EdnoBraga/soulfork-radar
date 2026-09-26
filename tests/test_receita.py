@@ -135,8 +135,12 @@ def test_tela_explica_o_que_falta_quando_nao_ha_chave(monkeypatch):
     from prospector.web.app import app
     with app.test_client() as c:
         html = c.get("/receita").get_data(as_text=True)
-    assert "SUPABASE_SERVICE_KEY" in html
-    assert "service_role" in html
+    # O nome tem que bater com o que ele ve na tela do Supabase hoje: a chave virou
+    # "Secret key" / sb_secret_, e mandar procurar "service_role" e mandar procurar
+    # um nome que nao existe mais na interface.
+    assert "SUPABASE_SECRET_KEY" in html
+    assert "sb_secret_" in html
+    assert "Secret keys" in html
 
 
 def test_tela_nao_cai_quando_o_supabase_esta_fora(monkeypatch):

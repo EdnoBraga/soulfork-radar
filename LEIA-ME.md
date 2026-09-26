@@ -84,9 +84,10 @@ Receita não tem telefone de sócio — só o do estabelecimento. Mas quem abre 
 próprio celular no cadastro, porque não há recepção para pôr, então celular vale muito
 mais que fixo na nota.
 
-Precisa de `SUPABASE_SERVICE_KEY` (Supabase → Project Settings → API → *service_role*).
-A chave publicável **não** serve: ela fica exposta na tela de login e a tabela tem nome de
-pessoa. A leitura acontece no servidor, depois de a pessoa já ter entrado.
+Precisa de `SUPABASE_SECRET_KEY`: **Supabase → Settings → API Keys → Secret keys →
+`default`**, formato `sb_secret_...` (o antigo `service_role` também funciona, na aba
+*Legacy*). A chave publicável **não** serve: ela fica exposta na tela de login e a tabela
+tem nome de pessoa. A leitura acontece no servidor, depois de a pessoa já ter entrado.
 
 ## Usar
 

@@ -36,10 +36,11 @@
 {% if nao_configurado %}
 <div class="aviso">
  <strong>Falta configurar.</strong> Esta tela lê a tabela <code>receita_leads</code> no
- Supabase, e a leitura é feita pelo servidor com a chave de serviço — a chave publicável
+ Supabase, e a leitura é feita pelo servidor com a chave secreta — a chave publicável
  não serve, porque fica exposta na tela de login e aqui há nome de pessoa.<br><br>
- No Easypanel, adicione <code>SUPABASE_SERVICE_KEY</code> (Supabase → Project Settings →
- API → <em>service_role</em>). <code>SUPABASE_URL</code> você já tem, do login.
+ No Easypanel, adicione <code>SUPABASE_SECRET_KEY</code>. A chave está em
+ <strong>Supabase → Settings → API Keys → Secret keys → <em>default</em></strong>, clicando
+ em revelar; começa com <code>sb_secret_</code>. <code>SUPABASE_URL</code> você já tem, do login.
 </div>
 {% else %}
 
